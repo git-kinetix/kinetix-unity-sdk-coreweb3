@@ -1,0 +1,18 @@
+{
+    "name": "Kinetix.Core.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:848f9a992678c4f4693fd101a7051e77"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

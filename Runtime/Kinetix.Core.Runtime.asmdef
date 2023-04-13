@@ -1,0 +1,19 @@
+{
+    "name": "Kinetix.Core.Runtime",
+    "rootNamespace": "",
+    "references": [
+        "GUID:6344665ee267b5e4c80087a65e25780a"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "Newtonsoft.Json.dll",
+        "Kinetix.Retarget.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

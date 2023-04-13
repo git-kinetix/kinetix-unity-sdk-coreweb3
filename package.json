@@ -1,0 +1,10 @@
+{
+  "name": "com.kinetix.coreweb3",
+  "version": "0.5.0",
+  "displayName": "Kinetix Core",
+  "description": "Kinetix Core SDK",
+  "author": {
+    "name": "Kinetix",
+    "url": "https://www.kinetix.tech"
+  }
+}
