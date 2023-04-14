@@ -1,1 +1,1 @@
-# Kinetix Unity SDK Core Web3
+# Kinetix Unity SDK Core
