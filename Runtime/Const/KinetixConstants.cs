@@ -11,7 +11,7 @@ namespace Kinetix.Internal
 {
     public static class KinetixConstants
     {
-        public const string version = "0.5.0";
+        public const string version = "0.5.1";
         
         #region StreamingAssets
         

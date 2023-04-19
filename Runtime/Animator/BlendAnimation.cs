@@ -335,7 +335,7 @@ namespace Kinetix.Internal
 		#endregion
 
 
-#if UNITY_EDITOR && DEV_KINETIX
+#if UNITY_EDITOR && DEV_KINETIX && !DEBUG_AVATAR
 		public Color m_colorRig = Color.blue;
 		public Color m_colorRigClone = Color.red;
 		private void OnDrawGizmos()
