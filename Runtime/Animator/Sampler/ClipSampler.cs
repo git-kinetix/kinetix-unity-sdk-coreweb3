@@ -25,7 +25,7 @@ namespace Kinetix.Internal
 		private BlendState				m_blendState = BlendState.NONE;
 		internal BlendState BlendState
 		{
-#if UNITY_EDITOR && DEV_KINETIX
+#if UNITY_EDITOR && DEV_KINETIX && !DEBUG_AVATAR
 			get => m_blendState;
 			private set
 			{
