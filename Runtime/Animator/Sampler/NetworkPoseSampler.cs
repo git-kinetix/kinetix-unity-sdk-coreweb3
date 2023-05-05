@@ -12,7 +12,8 @@ namespace Kinetix.Internal
 {
     internal class NetworkPoseSampler
     {
-        private readonly ReadOnlyCollection<string> humans = Sam.HUMANS;
+        private const    float                      LERP_SMOOTHNESS = 0.25f;
+        private readonly ReadOnlyCollection<string> humans          = Sam.HUMANS;
 
         private List<Transform> boneTransforms;
         private Queue<KinetixNetworkedPose> targetTimestampPoseQueue;
@@ -217,7 +218,7 @@ namespace Kinetix.Internal
                 }
 
                 // Calculate interpolation ratio
-                ratio = 0.3f / ellapsedSinceLast;
+                ratio = LERP_SMOOTHNESS;
 
                 float fRatio = Mathf.Abs((float) ratio);
 

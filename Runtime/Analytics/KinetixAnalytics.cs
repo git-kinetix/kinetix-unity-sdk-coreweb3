@@ -17,6 +17,7 @@ namespace Kinetix
         public enum Page{
             EmoteWheel,
             Inventory,
+            Create,
             None
         }
 

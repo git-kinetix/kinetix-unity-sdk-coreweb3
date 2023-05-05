@@ -10,11 +10,13 @@ using UnityEngine;
 [Serializable]
 public class AnimationIds
 {
-    // /!\ Not readonly for serialisation
-    
     public string UUID;
     public string TokenID;
     public string ContractAddress;
+
+    // /!\ Not readonly for serialisation
+    
+    
 
 
     public AnimationIds(string _UUID, string _TokenID, string _ContractAddress)
@@ -73,5 +75,14 @@ public class AnimationIds
         return "\n" + "UUID : " + UUID + " // " +
                "Token ID : " + TokenID + " // " + 
                "Contract Address : " + ContractAddress;
+    }
+
+    public EKinetixNodeProvider GetExpectedProvider()
+    {
+        if (TokenID != string.Empty && ContractAddress != string.Empty)
+            return EKinetixNodeProvider.ALCHEMY;
+
+
+        return EKinetixNodeProvider.NONE;
     }
 }

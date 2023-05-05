@@ -64,6 +64,15 @@ namespace Kinetix.Internal
                 isProcessing = false;
                 UnityEngine.Object.DestroyImmediate(textureIcon);
                 tcs.TrySetCanceled();
+                await TaskUtils.Delay(0.0f);
+                DequeueOperations();
+                return;
+            }
+            catch (Exception e)
+            {
+                isProcessing = false;
+                tcs.TrySetException(e);
+                await TaskUtils.Delay(0.0f);
                 DequeueOperations();
                 return;
             }

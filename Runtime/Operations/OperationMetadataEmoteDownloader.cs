@@ -1,8 +1,6 @@
 using System;
 using System.Threading.Tasks;
 
-// FILE_WEB3
-
 namespace Kinetix.Internal
 {
     public class OperationMetadataEmoteDownloader : OperationAsync<AnimationMetadata>
@@ -21,7 +19,7 @@ namespace Kinetix.Internal
             {
                 try
                 {
-                    Task<AnimationMetadata> task = ProviderManager.GetAnimationMetadataOfNFT(animationIds);
+                    Task<AnimationMetadata> task = ProviderManager.GetAnimationMetadataOfEmote(animationIds);
                     ProgressStatus = EProgressStatus.PENDING;
                     Task           = task;
                     metadata       = await task;
@@ -44,4 +42,3 @@ namespace Kinetix.Internal
         }
     }
 }
-

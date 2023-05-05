@@ -36,6 +36,7 @@ namespace Kinetix
         public static KinetixMetadata  Metadata  { get; internal set; }
         public static KinetixAnimation Animation { get; internal set; }
         public static KinetixNetwork   Network   { get; internal set; }
+        public static KinetixUGC   UGC   { get; internal set; }
 
         #endregion
     }

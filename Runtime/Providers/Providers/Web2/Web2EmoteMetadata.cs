@@ -1,4 +1,3 @@
-
 namespace Kinetix.Internal 
 {
     [System.Serializable]

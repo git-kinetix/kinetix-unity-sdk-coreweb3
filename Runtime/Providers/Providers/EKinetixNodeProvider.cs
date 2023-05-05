@@ -4,11 +4,9 @@
 // // </copyright>
 // // ----------------------------------------------------------------------------
 
-// FILE_WEB3
-namespace Kinetix.Internal
+public enum EKinetixNodeProvider
 {
-    public enum EKinetixNodeProvider
-    {
-        ALCHEMY
-    }
+    ALCHEMY,
+    NONE,
 }
+

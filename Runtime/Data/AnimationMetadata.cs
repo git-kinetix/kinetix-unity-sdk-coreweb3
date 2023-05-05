@@ -34,6 +34,7 @@ namespace Kinetix
 
 		public string AnimationURL;
         public string IconeURL;
+		public DateTime CreatedAt;
 
 		#endregion
 

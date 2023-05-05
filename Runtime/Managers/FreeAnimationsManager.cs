@@ -60,7 +60,9 @@ namespace Kinetix.Internal
             List<KinetixEmote> emotes = new List<KinetixEmote>();
 
             foreach (FreeAnimationPath emotePath in manifest.emotesPaths) {
-                string filePathName = Path.Combine(Application.streamingAssetsPath, emotePath.emoteLocation, emotePath.emoteName, emotePath.emoteName);
+                string emoteName = String.Concat(emotePath.emoteName.Where(c => !Char.IsWhiteSpace(c)));
+
+                string filePathName = Path.Combine(Application.streamingAssetsPath, emotePath.emoteLocation, emoteName, emoteName);
                 AnimationMetadata emoteMetadata = null;
 
                 string json = await WebRequestHandler.Instance.GetAsyncRaw(filePathName + ".json", null);
@@ -73,9 +75,7 @@ namespace Kinetix.Internal
 
                 emoteMetadata.IconeURL = filePathName + ".png";
                 KinetixEmote emote = EmotesManager.GetEmote(emoteMetadata.Ids);
-                //Sprite emoteIcone = await AssetManager.LoadIcon(filePathName + ".png");
-                //emoteMetadata.SetLocalIcon(emoteIcone);
-                
+
                 emote.SetLocalMetadata(emoteMetadata, filePathName + ".glb");
                 emotes.Add(emote);
             }

@@ -15,7 +15,7 @@ namespace Kinetix.Utils
 
         private static IEnumerator DelayCoroutine(float seconds, TaskCompletionSource<object> tcs)
         {
-            yield return new WaitForSeconds(seconds);
+            yield return new WaitForSecondsRealtime(seconds);
             tcs.SetResult(null);
         }
     }

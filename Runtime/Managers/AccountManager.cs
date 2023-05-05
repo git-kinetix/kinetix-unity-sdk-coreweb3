@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Kinetix.Internal.Cache;
 using Kinetix.Internal.Utils;
+using Kinetix.Utils;
+using Newtonsoft.Json;
 using UnityEngine;
 
 namespace Kinetix.Internal
@@ -10,60 +13,78 @@ namespace Kinetix.Internal
     public static class AccountManager
     {
         public static Action OnUpdatedAccount;
+        public static Action OnConnectedAccount;
+        
+        private static List<Account> Accounts;
+        private static string VirtualWorldId;
 
-        private static Dictionary<string, Account> AccountsByWalletAddress;
 
         public static void Initialize()
         {
-            AccountsByWalletAddress = new Dictionary<string, Account>(); 
-            AddFreeAnimations();
+            Initialize(string.Empty);
         }
+
+        public static void Initialize(string _VirtualWorldId)
+        {
+            Accounts = new List<Account>(); 
+            AddFreeAnimations();
+
+            VirtualWorldId = _VirtualWorldId;
+        }
+
 
         public static void ConnectWallet(string _WalletAddress)
         {
-            if (AccountsByWalletAddress.ContainsKey(_WalletAddress))
+            if (IsAccountAlreadyConnected(_WalletAddress))
             {
                 KinetixDebug.LogWarning("Account is already connected");
-                return;
             }
 
-            Account account = new Account(_WalletAddress);
-            AccountsByWalletAddress.Add(_WalletAddress, account);
+            WalletAccount account = new WalletAccount(_WalletAddress);
+            Accounts.Add(account);
         }
 
         public static void DisconnectWallet(string _WalletAddress)
         {
-            if (!AccountsByWalletAddress.ContainsKey(_WalletAddress))
-                return;
+            int foundIndex = -1;
 
-            GetAllUserEmotes(beforeAnimationMetadatas =>
+            for (int i = 0; i < Accounts.Count; i++)
             {
-                List<AnimationIds> idsBeforeRemoveWallet = beforeAnimationMetadatas.ToList().Select(metadata => metadata.Ids).ToList();
-                AccountsByWalletAddress.Remove(_WalletAddress);
-                GetAllUserEmotes(afterAnimationMetadatas =>
+                if (Accounts[i].AccountId == _WalletAddress && Accounts[i] is WalletAccount)
                 {
-                    List<AnimationIds> idsAfterRemoveWallet = afterAnimationMetadatas.ToList().Select(metadata => metadata.Ids).ToList();
-                    idsBeforeRemoveWallet = idsBeforeRemoveWallet.Except(idsAfterRemoveWallet).ToList();
+                    foundIndex = i;
+                }
+            }
 
-                    LocalPlayerManager.UnloadLocalPlayerAnimations(idsBeforeRemoveWallet.ToArray());
-                    OnUpdatedAccount?.Invoke();
-                });
-            });
+            RemoveEmotesAndAccount(foundIndex);
+        }
+
+        public static bool IsAccountAlreadyConnected(string _AccountId)
+        {
+            foreach (Account acc in Accounts)
+            {
+                if (acc.AccountId == _AccountId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public static void DisconnectAllWallets()
         {
-            foreach (KeyValuePair<string, Account> kvp in AccountsByWalletAddress)
+            foreach (Account acc in Accounts)
             {
-                DisconnectWallet(kvp.Key);
+                if (acc is WalletAccount)
+                    DisconnectWallet(acc.AccountId);
             }
         }
 
         public static async void GetAllUserEmotes(Action<AnimationMetadata[]> _OnSuccess, Action _OnFailure = null)
         {
             List<KinetixEmote> emotesAccountAggregation = new List<KinetixEmote>();
-            List<Account>      accounts = AccountsByWalletAddress.Values.ToList();
-            int                countAccount = AccountsByWalletAddress.Count;
+            int                countAccount = Accounts.Count;
 
             try
             {
@@ -81,7 +102,7 @@ namespace Kinetix.Internal
             }
 
 
-            if (accounts.Count == 0)
+            if (Accounts.Count == 0)
             {                
                 _OnSuccess?.Invoke(emotesAccountAggregation.Select(emote => emote.Metadata).ToArray());
                 return;
@@ -89,11 +110,12 @@ namespace Kinetix.Internal
 
             try
             {
-                for (int i = 0; i < accounts.Count; i++)
+                for (int i = 0; i < Accounts.Count; i++)
                 {
-                    KinetixEmote[]     accountEmotes = await accounts[i].FetchMetadatas();
-                    List<KinetixEmote> accountEmotesList = accountEmotes.ToList();
+                    KinetixEmote[]     accountEmotes = await Accounts[i].FetchMetadatas();
                     
+                    List<KinetixEmote> accountEmotesList = accountEmotes.ToList();
+
                     // Remove all animations with are duplicated and not owned
                     emotesAccountAggregation.RemoveAll(metadata => accountEmotesList.Exists(emote => emote.Ids.UUID == metadata.Ids.UUID && emote.Metadata.Ownership != EOwnership.OWNER));
                     
@@ -114,8 +136,6 @@ namespace Kinetix.Internal
                 KinetixDebug.LogWarning(e.Message);
             }
         }
-
-        
 
         public static void AddFreeAnimations()
         {
@@ -158,5 +178,30 @@ namespace Kinetix.Internal
                 _Callback?.Invoke(totalPage);
             }, () => { _OnFailure?.Invoke(); });
         }
+
+        
+
+        private static void RemoveEmotesAndAccount(int accountIndex)
+        {
+            if (accountIndex == -1) 
+                return;
+
+            GetAllUserEmotes(beforeAnimationMetadatas =>
+            {
+                List<AnimationIds> idsBeforeRemoveWallet = beforeAnimationMetadatas.ToList().Select(metadata => metadata.Ids).ToList();
+
+                Accounts.RemoveAt(accountIndex);
+
+                GetAllUserEmotes(afterAnimationMetadatas =>
+                {
+                    List<AnimationIds> idsAfterRemoveWallet = afterAnimationMetadatas.ToList().Select(metadata => metadata.Ids).ToList();
+                    idsBeforeRemoveWallet = idsBeforeRemoveWallet.Except(idsAfterRemoveWallet).ToList();
+
+                    LocalPlayerManager.UnloadLocalPlayerAnimations(idsBeforeRemoveWallet.ToArray());
+                    OnUpdatedAccount?.Invoke();
+                });
+            });
+        }
+
     }
 }
