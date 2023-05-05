@@ -1,6 +1,11 @@
 {
-    "uuid":"044be7e7-0280-41a4-9526-01fe52807cc2",
-    "name":"Laughter",
-    "origin": "PREMIUM",
-    "duration": 5.833333492279053
+	"id": "19574",
+	"uuid": "f2e4c7f6-ff4f-47aa-8fc1-c5c2fb139e10",
+	"name": "Laughter",
+	"origin": "PREMIUM",
+	"categories": [
+		"Hand gesture"
+	],
+	"tags": [],
+	"duration": 5.849999904632568
 }

@@ -20,6 +20,10 @@ namespace Kinetix.Utils
     public class WebRequestHandler : MonoBehaviour
     {
         private static WebRequestHandler instance;
+        private Dictionary<string, int> currentPollsCallsLeft;
+        
+        public const string ERROR_RECEIVED = "ERROR"; 
+
         
         public static WebRequestHandler Instance
         {
@@ -79,13 +83,7 @@ namespace Kinetix.Utils
             www.SetRequestHeader("accept", "application/json");
             UnityWebRequestAsyncOperation asyncOp = www.SendWebRequest();
 
-            
-            /*
-            while (!asyncOp.isDone)
-            {
-                await 
-            }
-            */
+
             TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
             asyncOp.completed += (op) =>
             {
@@ -124,9 +122,55 @@ namespace Kinetix.Utils
             
             return await _Tcs.Task;
         }
+
+        public async Task<bool> PostAsyncRaw(string endPoint, KeyValuePair<string, string>[] headers, string jsonBody)
+        {
+            var    tcs         = new TaskCompletionSource<bool>();
+            Uri uri = new Uri(endPoint);
+
+            using (UnityWebRequest www = new UnityWebRequest(uri, "POST"))
+            {
+                if (jsonBody != string.Empty)
+                {
+                    byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonBody);
+                    www.uploadHandler = (UploadHandler) new UploadHandlerRaw(bodyRaw);
+                }
+    
+                www.SetRequestHeader("accept", "application/json");
+                www.SetRequestHeader("Content-Type", "application/json");
+
+                if (headers != null)
+                {
+                    foreach (KeyValuePair<string, string> keyValuePair in headers)
+                    {
+                        www.SetRequestHeader(keyValuePair.Key, keyValuePair.Value);
+                    }
+                }
+
+                www.SendWebRequest();
+                
+                while (!www.isDone)
+                {
+                    await Task.Yield();
+                }
+
+                if (www.result == UnityWebRequest.Result.ConnectionError ||
+                    www.result == UnityWebRequest.Result.ProtocolError ||
+                    www.result == UnityWebRequest.Result.DataProcessingError)
+                {
+            
+                    tcs.SetResult(false); 
+                }
+                else
+                {
+                    tcs.SetResult(true);
+                }
+            }
+            return await tcs.Task;
+        }
         
 
-        public async Task<string> GetAsyncRaw(string endPoint, KeyValuePair<string, string>[] query)
+        public async Task<string> GetAsyncRaw(string endPoint, KeyValuePair<string, string>[] headers, KeyValuePair<string, string>[] query, string errorFallbackText = "")
         {
             var    tcs         = new TaskCompletionSource<string>();
             string queryString = string.Empty;
@@ -155,6 +199,14 @@ namespace Kinetix.Utils
             {
                 www.SetRequestHeader("accept", "application/json");
 
+                if (headers != null)
+                {
+                    foreach (KeyValuePair<string, string> keyValuePair in headers)
+                    {
+                        www.SetRequestHeader(keyValuePair.Key, keyValuePair.Value);
+                    }
+                }
+
                 www.SendWebRequest();
                 
                 while (!www.isDone)
@@ -162,12 +214,11 @@ namespace Kinetix.Utils
                     await Task.Yield();
                 }
 
-
                 if (www.result == UnityWebRequest.Result.ConnectionError ||
                     www.result == UnityWebRequest.Result.ProtocolError ||
                     www.result == UnityWebRequest.Result.DataProcessingError)
                 {
-                    tcs.SetResult(string.Empty);
+                    tcs.SetResult(errorFallbackText);
                 }
                 else
                 {
@@ -175,6 +226,11 @@ namespace Kinetix.Utils
                 }
             }
             return await tcs.Task;
+        }
+
+        public async Task<string> GetAsyncRaw(string endPoint, KeyValuePair<string, string>[] query)
+        {
+            return await GetAsyncRaw(endPoint, null, query);
         }
 
         public void GetFile(string _URL, string _FilePath, Action _OnSuccess, Action _OnFailure)
@@ -260,6 +316,52 @@ namespace Kinetix.Utils
 
 
             }
+        }
+
+        public async Task<string> PollUrl(string url, Func<string, bool> completionCondition, int nbRequests = 10, float requestTimeout = 300)
+        {
+            return await PollUrl(url, null, completionCondition, nbRequests, requestTimeout);
+        }
+
+        public async Task<string> PollUrl(string url, KeyValuePair<string, string>[] headers, Func<string, bool> completionCondition, int nbRequests = 10, float requestTimeout = 300)
+        {
+            currentPollsCallsLeft ??= new Dictionary<string, int>();
+
+            if (currentPollsCallsLeft.ContainsKey(url)) {
+                currentPollsCallsLeft[url] = nbRequests;
+                return null;
+            }
+
+            currentPollsCallsLeft[url] = nbRequests;
+
+            for (int i = currentPollsCallsLeft[url]; i > 0 ; i = currentPollsCallsLeft[url])
+            {
+                currentPollsCallsLeft[url] --;
+                
+                try
+                {
+                    var task = GetAsyncRaw(url, headers, null, ERROR_RECEIVED);
+                    
+                    
+                    if (await Task.WhenAny(task, TaskUtils.Delay((int)(requestTimeout))) == task && !string.IsNullOrEmpty(task.Result) && completionCondition(task.Result))
+                    {
+                        currentPollsCallsLeft.Remove(url);
+                        return task.Result;
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogError($"Error during request {i}: {e.Message}");
+                }
+                
+                // Wait for timeout more and more
+                await TaskUtils.Delay(requestTimeout / nbRequests);
+            }
+
+
+            currentPollsCallsLeft.Remove(url);
+
+            return null;
         }
 
         /// <summary>

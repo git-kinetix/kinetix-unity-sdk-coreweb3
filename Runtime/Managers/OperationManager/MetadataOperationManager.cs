@@ -1,5 +1,3 @@
-// FILE_WEB3
-
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Kinetix.Utils;

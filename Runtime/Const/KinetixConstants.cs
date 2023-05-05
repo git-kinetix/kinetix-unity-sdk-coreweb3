@@ -4,14 +4,18 @@
 // // </copyright>
 // // ----------------------------------------------------------------------------
 
-
 using System.Collections.Generic;
 
 namespace Kinetix.Internal
 {
     public static class KinetixConstants
     {
-        public const string version = "0.5.1";
+        public const string version = "0.6.0";
+
+        public static bool C_ShouldUGCBeAvailable = false;
+
+        public static readonly int c_TimeOutCreateQRCode = 305;
+        
         
         #region StreamingAssets
         

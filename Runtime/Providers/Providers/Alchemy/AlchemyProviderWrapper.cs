@@ -12,6 +12,8 @@ using System.Threading.Tasks;
 using Kinetix.Internal;
 using Kinetix.Utils.Alchemy;
 using UnityEngine;
+using System.Linq;
+
 
 namespace Kinetix.Utils
 {
@@ -27,20 +29,23 @@ namespace Kinetix.Utils
         /// <summary>
         /// Make a Web Request to get all the NFTs Metadata of the User's Wallet
         /// </summary>
-        public async Task<AnimationMetadata[]> GetAnimationsMetadataOfOwner(string _WalletAddress, List<string> _Contracts)
+        public async Task<AnimationMetadata[]> GetAnimationsMetadataOfOwner(string _AccountId)
         {
             TaskCompletionSource<AnimationMetadata[]> tcs = new TaskCompletionSource<AnimationMetadata[]>();
 
             try
             {
-                GetAnimationsMetadataOfOwnerInternal(_WalletAddress, _Contracts, null, null, (metadatas) =>
+                List<KinetixContract> contracts = await KinetixBackendAPI.GetContracts();
+                List<string>          addresses = contracts.Select(contract => contract.contractAddress).ToList();
+
+                GetAnimationsMetadataOfOwnerInternal(_AccountId, addresses, null, null, (metadatas) =>
                 {
                     tcs.SetResult(metadatas);   
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                tcs.SetException(e);
+                return Array.Empty<AnimationMetadata>();
             }
             
             return await tcs.Task;
@@ -50,7 +55,9 @@ namespace Kinetix.Utils
         {
             if (String.IsNullOrEmpty(apiKey))
             {
-                throw new Exception("Wallet address is empty");
+                Debug.LogWarning("API Key not registered");
+                _OnSuccess?.Invoke(Array.Empty<AnimationMetadata>());
+                return;
             }
 
             string uri = KinetixConstants.c_BaseAlchemyURL + "/" + apiKey + "/" + KinetixConstants.c_AlchemyGetNFTsForOwnerEndpoint;
@@ -106,9 +113,9 @@ namespace Kinetix.Utils
         
 
         /// <summary>
-        /// Make a Web Request to get metadata of specific NFT
+        /// Make a Web Request to get metadata of specific Emote
         /// </summary>
-        public async Task<AnimationMetadata> GetAnimationMetadataOfNft(AnimationIds _AnimationIds)
+        public async Task<AnimationMetadata> GetAnimationMetadataOfEmote(AnimationIds _AnimationIds)
         {
             TaskCompletionSource<AnimationMetadata> tcs = new TaskCompletionSource<AnimationMetadata>();
 

@@ -19,6 +19,7 @@ namespace Kinetix.Internal
         public string          external_url;
         public string          animation_url;
         public string          iframe_url;
+        public DateTime          createdAt;
 
         public AnimationMetadata ToAnimationMetadata()
         {
@@ -60,6 +61,10 @@ namespace Kinetix.Internal
                 Description  = description,
                 AnimationURL = external_url,
                 IconeURL     = thumbnail_url,
+                Ownership = EOwnership.OWNER,
+                CreatedAt = createdAt,
+
+                
 
                 EmoteRarity = enumRarity,
                 

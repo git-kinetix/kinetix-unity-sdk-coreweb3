@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
 using Kinetix.Utils;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Kinetix.Internal
 {
@@ -30,17 +32,22 @@ namespace Kinetix.Internal
             if (IconSpritesByURL.ContainsKey(_URL))
                 return IconSpritesByURL[_URL];
 
-            Texture2D tex2D;
+            Sprite    sprite = null;
+            Texture2D tex2D  = null;
+            
             try
             {
-                tex2D = await IconOperationManager.DownloadTexture(_URL, cancelToken);
+                tex2D  = await IconOperationManager.DownloadTexture(_URL, cancelToken);
+                sprite = Sprite.Create(tex2D, new Rect(0, 0, tex2D.width, tex2D.height), new Vector2(0, 0), 100f, 0, SpriteMeshType.FullRect);
             }
             catch (TaskCanceledException e)
             {
                 throw e;
             }
-
-            Sprite    sprite = Sprite.Create(tex2D, new Rect(0, 0, tex2D.width, tex2D.height), new Vector2(0, 0), 100f, 0, SpriteMeshType.FullRect);
+            catch (Exception)
+            {
+                // Let texture and sprite to null if an exception is thrown
+            }
             
             if (IconTexturesByURL != null && !IconTexturesByURL.ContainsKey(_URL))
                 IconTexturesByURL.Add(_URL, tex2D);

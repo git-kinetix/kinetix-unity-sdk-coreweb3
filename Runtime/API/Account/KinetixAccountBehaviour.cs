@@ -1,9 +1,10 @@
-// FILE_WEB3
+using System;
 
 namespace Kinetix.Internal
 {
     internal static class KinetixAccountBehaviour
     {
+
         public static void ConnectWallet(string _WalletAddress)
         {
             AccountManager.ConnectWallet(_WalletAddress);
@@ -20,5 +21,4 @@ namespace Kinetix.Internal
         }
     }
 }
-
 

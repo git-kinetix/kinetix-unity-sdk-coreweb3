@@ -10,6 +10,7 @@ namespace Kinetix
     {
         // Node API Key
         public string NodeProvideAPIKey;
+
         // Play Animation Automatically on Animators
         public bool   PlayAutomaticallyAnimationOnAnimators = true;
         
@@ -18,7 +19,11 @@ namespace Kinetix
         
         // Show Logs
         public bool   ShowLogs = false;
-        
+
+        // Are the User Generated Content available?
+        public bool EnableUGC = true;
+
+        // Network Configuration        
         public KinetixNetworkConfiguration NetworkConfiguration;
     }
 }

@@ -43,6 +43,11 @@ namespace Kinetix.Internal
                     Object.DestroyImmediate(texture2D);
                     throw e;
                 }
+                catch (Exception e)
+                {
+                    ProgressStatus = EProgressStatus.COMPLETED;
+                    throw e;
+                }
 
                 ProgressStatus = EProgressStatus.COMPLETED;
                 return texture2D;
