@@ -10,7 +10,7 @@ namespace Kinetix.Internal
 {
     public static class KinetixConstants
     {
-        public const string version = "0.6.0";
+        public const string version = "0.6.1";
 
         public static bool C_ShouldUGCBeAvailable = false;
 
@@ -19,7 +19,11 @@ namespace Kinetix.Internal
         
         #region StreamingAssets
         
+#if DEV_KINETIX
+        public const string C_FreeAnimationsAssetPluginPath = "Assets/Plugins/Kinetix/Core/Resources/FreeAnimations"; 
+#elif WEB3
         public const string C_FreeAnimationsAssetPluginPath = "Packages/com.kinetix.coreweb3/Resources/FreeAnimations";
+#endif
         
         public static string C_FreeAnimationsManifestPath => "Kinetix/FreeEmoteManifest.json";
         public const string C_FreeAnimationsAssetSAPath = "Assets/StreamingAssets/Kinetix/FreeAnimations";

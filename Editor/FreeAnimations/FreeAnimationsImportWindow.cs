@@ -170,6 +170,14 @@ namespace Kinetix.Internal
 
 
             bool success = AssetDatabase.CopyAsset(KinetixConstants.C_FreeAnimationsAssetPluginPath, KinetixConstants.C_FreeAnimationsAssetSAPath);
+            
+            if (!success) {
+                success = true;
+
+                foreach (DirectoryInfo emotedir in new DirectoryInfo(KinetixConstants.C_FreeAnimationsAssetPluginPath).GetDirectories()) {
+                    success = success && AssetDatabase.CopyAsset(KinetixConstants.C_FreeAnimationsAssetPluginPath + "/" + emotedir.Name, KinetixConstants.C_FreeAnimationsAssetSAPath + "/" + emotedir.Name);
+                }
+            }
 
             DirectoryInfo freeAnimDir = new DirectoryInfo(KinetixConstants.C_FreeAnimationsAssetSAPath);
             DirectoryInfo[] emotesDirectories = freeAnimDir.GetDirectories();
