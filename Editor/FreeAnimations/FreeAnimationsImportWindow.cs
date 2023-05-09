@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using Newtonsoft.Json;
+using System;
+using System.Linq;
 
 namespace Kinetix.Internal
 {
@@ -83,12 +85,12 @@ namespace Kinetix.Internal
             EditorGUILayout.Space();
             EditorGUILayout.Space();
             EditorGUILayout.Space();
-            
             EditorGUILayout.LabelField("Import custom free emotes");
             EditorGUILayout.Space();
 
             
             try {
+
                 emoteCatalogSO = EditorGUILayout.ObjectField("Select emote catalog scriptable object", emoteCatalogSO, typeof(KinetixEmoteCatalogSO), false) as KinetixEmoteCatalogSO;
             #pragma warning disable CS0168 // Variable non utilisée
             } catch (ExitGUIException e) {
@@ -102,6 +104,7 @@ namespace Kinetix.Internal
             }
 
             GUI.enabled = true;
+
             if (GUILayout.Button("Remove Custom Free emotes")) {
                 RemoveKinetixCustomEmotes();
             }
@@ -124,7 +127,7 @@ namespace Kinetix.Internal
                 AnimationMetadata animationMetadata = result.ToAnimationMetadata();
 
                 
-                filesPath += "/" + result.name + "/";
+                filesPath += "/" + String.Concat(result.name.Where(c => !Char.IsWhiteSpace(c))) + "/";
 
                 if (!Directory.Exists(filesPath)) {
                     Directory.CreateDirectory(filesPath);
@@ -132,20 +135,20 @@ namespace Kinetix.Internal
 
 
                 // Write metadata in file
-                string metadataFilePathName = filesPath + result.name + ".json";
+                string metadataFilePathName = filesPath + String.Concat(result.name.Where(c => !Char.IsWhiteSpace(c))) + ".json";
 
                 StreamWriter metadataWriter = new StreamWriter(metadataFilePathName, false);
                 metadataWriter.WriteLine(JsonConvert.SerializeObject(result.toWeb2Emote()));
                 metadataWriter.Close();
 
-                string pngFilePathName = filesPath + result.name + ".png";
+                string pngFilePathName = filesPath + String.Concat(result.name.Where(c => !Char.IsWhiteSpace(c))) + ".png";
                 bool downloadedPngFileSuccessfully = await WebRequestEditorHandler.GetFileAsync(result.thumbnail_url, pngFilePathName);
 
                 // Get glb file
-                string glbFilePathName = filesPath + result.name + ".glb";
+                string glbFilePathName = filesPath + String.Concat(result.name.Where(c => !Char.IsWhiteSpace(c))) + ".glb";
                 bool downloadedGlbFileSuccessfully = await WebRequestEditorHandler.GetFileAsync(result.external_url, glbFilePathName);
 
-                manifest.AddEmote(KinetixConstants.C_FreeCustomAnimationsPath, result.name);
+                manifest.AddEmote(KinetixConstants.C_FreeCustomAnimationsPath, String.Concat(result.name.Where(c => !Char.IsWhiteSpace(c))));
                 manifest.Save();
             }
 
@@ -161,7 +164,20 @@ namespace Kinetix.Internal
                 Directory.CreateDirectory("Assets/StreamingAssets/Kinetix");
             }
 
+            if (!Directory.Exists("Assets/StreamingAssets/Kinetix/FreeAnimations")) {
+                Directory.CreateDirectory("Assets/StreamingAssets/Kinetix/FreeAnimations");
+            }
+
+
             bool success = AssetDatabase.CopyAsset(KinetixConstants.C_FreeAnimationsAssetPluginPath, KinetixConstants.C_FreeAnimationsAssetSAPath);
+            
+            if (!success) {
+                success = true;
+
+                foreach (DirectoryInfo emotedir in new DirectoryInfo(KinetixConstants.C_FreeAnimationsAssetPluginPath).GetDirectories()) {
+                    success = success && AssetDatabase.CopyAsset(KinetixConstants.C_FreeAnimationsAssetPluginPath + "/" + emotedir.Name, KinetixConstants.C_FreeAnimationsAssetSAPath + "/" + emotedir.Name);
+                }
+            }
 
             DirectoryInfo freeAnimDir = new DirectoryInfo(KinetixConstants.C_FreeAnimationsAssetSAPath);
             DirectoryInfo[] emotesDirectories = freeAnimDir.GetDirectories();

@@ -1,18 +1,23 @@
-// FILE_WEB3
-
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using UnityEngine;
 
 namespace Kinetix.Internal
 {
     public class Account
     {
-        private readonly string                                          walletAddress;
-        private          KinetixEmote[]                                  emotes;
+        public string AccountId { get { return accountId; } }
+        private string accountId;
 
-        public Account(string _WalletAddress)
+        public List<KinetixEmote> Emotes { get { return emotes; } }
+        private List<KinetixEmote> emotes;
+
+
+        public Account(string _AccountId)
         {
-            walletAddress                 = _WalletAddress;
+            accountId = _AccountId;
+
             PreFetch();
         }
 
@@ -20,34 +25,67 @@ namespace Kinetix.Internal
         {
             await FetchMetadatas();
         }
-        
+
         public async Task<KinetixEmote[]> FetchMetadatas()
-        {
+        {   
             if (emotes != null)
-                return emotes;
+                return emotes.ToArray();
             
             try
             {
-                AnimationMetadata[] animationMetadatas = await MetadataAccountOperationManager.DownloadMetadataByWalletAddress(walletAddress);
-                emotes = new KinetixEmote[animationMetadatas.Length];
+                AnimationMetadata[] animationMetadatas = await MetadataAccountOperationManager.DownloadMetadataByAccount(this);
+                emotes = new List<KinetixEmote>();
                 
                 for (int i = 0; i < animationMetadatas.Length; i++)
                 {
-                    KinetixEmote emote = EmotesManager.GetEmote(animationMetadatas[i].Ids);
-                    emote.SetMetadata(animationMetadatas[i]);
-                    emotes[i] = emote;
+                    AddEmoteFromMetadata(animationMetadatas[i]);
                 }
                 
-                //AccountManager.OnUpdatedAccount?.Invoke();
-                return emotes;
+                AccountManager.OnUpdatedAccount?.Invoke();
+
+                return emotes.ToArray();
             }
             catch (Exception)
             {
                 return new KinetixEmote[] { };
             }
-            
+        }
+
+        public void AddEmoteFromMetadata(AnimationMetadata animationMetadata)
+        {
+            KinetixEmote emote = EmotesManager.GetEmote(animationMetadata.Ids);
+            emote.SetMetadata(animationMetadata);
+            emotes.Add(emote);
+        }
+
+        public async Task<AnimationMetadata> AddEmoteFromIds(AnimationIds animationMetadataIds)
+        {
+            var tcs = new TaskCompletionSource<AnimationMetadata>();
+
+            AnimationMetadata animMetadata = await ProviderManager.GetAnimationMetadataOfEmote(animationMetadataIds);
+
+            AddEmoteFromMetadata(animMetadata);
+
+            tcs.SetResult(animMetadata);
+
+            return await tcs.Task;
+        }
+
+        public bool HasEmote(AnimationIds emoteIds)
+        {
+            if (emotes == null)
+                return false;
+
+            foreach (KinetixEmote emote in emotes)
+            {
+                if (emote.Metadata.Ids == emoteIds)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
     }
 }
-

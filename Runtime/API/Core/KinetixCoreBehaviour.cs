@@ -20,6 +20,7 @@ namespace Kinetix.Internal
             KinetixCore.Metadata  = new KinetixMetadata();
             KinetixCore.Animation = new KinetixAnimation();
             KinetixCore.Network   = new KinetixNetwork();
+            KinetixCore.UGC   = new KinetixUGC();
 
             InitializeManagers(_Configuration);
 
@@ -33,10 +34,9 @@ namespace Kinetix.Internal
             
             AssetManager.Initialize();
             FreeAnimationsManager.Initialize();
-            ProviderManager.Initialize(_Configuration.NodeProvideAPIKey);
+            ProviderManager.Initialize(EKinetixNodeProvider.ALCHEMY, _Configuration.NodeProvideAPIKey);
             EmotesManager.Initialize();
             LocalPlayerManager.Initialize(_Configuration.PlayAutomaticallyAnimationOnAnimators);
-            MemoryManager.Initialize();
             AccountManager.Initialize();
             NetworkManager.Initialize(_Configuration.NetworkConfiguration);
             KinetixAnalytics.Initialize(_Configuration.EnableAnalytics);

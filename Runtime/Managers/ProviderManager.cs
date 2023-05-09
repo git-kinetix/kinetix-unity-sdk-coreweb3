@@ -4,7 +4,6 @@
 // // </copyright>
 // // ----------------------------------------------------------------------------
 
-// FILE_WEB3
 
 using System;
 using System.Collections.Generic;
@@ -17,50 +16,54 @@ namespace Kinetix.Internal
 {
     internal static class ProviderManager
     {
-        private static IProviderWrapper ProviderWrapper;
+        private static Dictionary<EKinetixNodeProvider, IProviderWrapper> ProviderWrappers;
+
 
         /// <summary>
         /// Initialize the wallet cache with a specific provider
         /// </summary>
         /// <param name="_APIKey">API Key of provider</param>
-        public static void Initialize(string _APIKey)
+        public static void Initialize(EKinetixNodeProvider provider, string _APIKey)
         {
-            CreateProvider(EKinetixNodeProvider.ALCHEMY, _APIKey);
+            if (ProviderWrappers == null)
+                ProviderWrappers = new Dictionary<EKinetixNodeProvider, IProviderWrapper>();
+            
+            CreateProvider(provider, _APIKey);
         }
+
 
         /// <summary>
         /// Create an instance of the Wrapper based on the provider
         /// </summary>
         /// <param name="_Provider">Node URL Provider</param>
-        private static void CreateProvider(EKinetixNodeProvider _Provider, string _APIKey)
+        private static void CreateProvider(EKinetixNodeProvider _Provider, string _APIKey = "")
         {
             switch (_Provider)
             {
                 case EKinetixNodeProvider.ALCHEMY:
                 {
-                    ProviderWrapper = new AlchemyProviderWrapper(_APIKey);
+                    ProviderWrappers[EKinetixNodeProvider.ALCHEMY] = new AlchemyProviderWrapper(_APIKey);
                     break;
                 }
             }
         }
 
+
         /// <summary>
-        /// Make a Web Request to get all the NFT of the User's Wallet
+        /// Make a Web Request to get all the user's emotes
         /// </summary>
-        /// <param name="_WalletAddress">Called upon fetch nfts</param>
-        public static async Task<AnimationMetadata[]> GetAnimationMetadataOfOwner(string _WalletAddress)
+        /// <param name="_Account">The account type</param>
+        public static async Task<AnimationMetadata[]> GetAnimationMetadataOfOwner(Account _Account)
         {
             try
             {
-                if (String.IsNullOrEmpty(_WalletAddress))
+                if (String.IsNullOrEmpty(_Account.AccountId))
                 {
-                    throw new Exception("Wallet address is empty");
+                    throw new Exception("Account id is empty");
                 }
                 
-                List<KinetixContract> contracts = await KinetixBackendAPI.GetContracts();
-                List<string>          addresses = contracts.Select(contract => contract.contractAddress).ToList();
+                AnimationMetadata[] animationMetadatas = await ProviderWrappers[GetTypeForAccountSpecialization(_Account)].GetAnimationsMetadataOfOwner(_Account.AccountId);
                 
-                AnimationMetadata[]   animationMetadatas = await ProviderWrapper.GetAnimationsMetadataOfOwner(_WalletAddress, addresses);
                 return animationMetadatas;
             }
             catch (Exception e)
@@ -74,13 +77,12 @@ namespace Kinetix.Internal
         /// Make a Web Request to get metadata of a specific NFT
         /// </summary>
         /// <param name="_AnimationIds">Animation Ids</param>
-        public static async Task<AnimationMetadata> GetAnimationMetadataOfNFT(AnimationIds _AnimationIds)
+        public static async Task<AnimationMetadata> GetAnimationMetadataOfEmote(AnimationIds _AnimationIds)
         {
             try
             {
-                // TODO : MOVE CONTRACTS IN ALCHEMY PROVIDER 
-                await KinetixBackendAPI.GetContracts();
-                AnimationMetadata     emoteMetadata = await ProviderWrapper.GetAnimationMetadataOfNft(_AnimationIds);
+                AnimationMetadata     emoteMetadata = await ProviderWrappers[_AnimationIds.GetExpectedProvider()].GetAnimationMetadataOfEmote(_AnimationIds);
+                
                 return emoteMetadata;
             }
             catch (Exception e)
@@ -89,6 +91,15 @@ namespace Kinetix.Internal
                 return null;
             }
         }
+
+        private static EKinetixNodeProvider GetTypeForAccountSpecialization(Account _Account)
+        {
+
+            if (_Account is WalletAccount)
+                return EKinetixNodeProvider.ALCHEMY;
+            
+
+            return EKinetixNodeProvider.NONE;
+        }
     }
 }
-

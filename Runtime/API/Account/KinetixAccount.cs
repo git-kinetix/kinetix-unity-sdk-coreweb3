@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 namespace Kinetix.Internal
 {
@@ -9,7 +8,14 @@ namespace Kinetix.Internal
         /// Event called upon new connection or disconnection
         /// </summary>
         public event Action OnUpdatedAccount;
-        
+
+        /// <summary>
+        /// Event called upon new account connected
+        /// </summary>
+        public event Action OnConnectedAccount;
+
+
+
         /// <summary>
         /// Connect Wallet with Wallet Address
         /// </summary>
@@ -35,17 +41,25 @@ namespace Kinetix.Internal
         {
             KinetixAccountBehaviour.DisconnectAllWallets();
         }
+
+        
         
         #region Internal
 
         public KinetixAccount()
         {
             AccountManager.OnUpdatedAccount += UpdatedAccount;
+            AccountManager.OnConnectedAccount += ConnectedAccount;
         }
 
         private void UpdatedAccount()
         {
             OnUpdatedAccount?.Invoke();
+        }
+
+        private void ConnectedAccount()
+        {
+            OnConnectedAccount?.Invoke();
         }
 
         #endregion

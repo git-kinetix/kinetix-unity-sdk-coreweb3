@@ -1,37 +1,36 @@
+using System;
 using System.Threading.Tasks;
-using Kinetix;
-using Kinetix.Internal;
 
-// FILE_WEB3
-
-public class OperationMetadataAccountEmotesDownloader : OperationAsync<AnimationMetadata[]>
+namespace Kinetix.Internal
 {
-    public readonly string              walletAddress;
-    private          AnimationMetadata[] metadata;
+    public class OperationMetadataAccountEmotesDownloader : OperationAsync<AnimationMetadata[]>
+    {
+        public readonly Account              account;
+        private          AnimationMetadata[] metadata;
         
-    public OperationMetadataAccountEmotesDownloader(string _WalletAddress)
-    {
-        walletAddress = _WalletAddress;
-    }
-
-    public override async Task<AnimationMetadata[]> Execute()
-    {
-        if (ProgressStatus == EProgressStatus.NONE)
+        public OperationMetadataAccountEmotesDownloader(Account _Account)
         {
-            Task<AnimationMetadata[]> task = ProviderManager.GetAnimationMetadataOfOwner(walletAddress);
-            ProgressStatus = EProgressStatus.PENDING;
-            Task           = task;
-            metadata       = await task;
-            return metadata;
+            account = _Account;
         }
 
-        if (ProgressStatus != EProgressStatus.COMPLETED)
+        public override async Task<AnimationMetadata[]> Execute()
         {
-            metadata = await Task;
+            if (ProgressStatus == EProgressStatus.NONE)
+            {
+                Task<AnimationMetadata[]> task = ProviderManager.GetAnimationMetadataOfOwner(account);
+                ProgressStatus = EProgressStatus.PENDING;
+                Task           = task;
+                metadata       = await task;
+                return metadata;
+            }
+
+            if (ProgressStatus != EProgressStatus.COMPLETED)
+            {
+                metadata = await Task;
+                return metadata;
+            }
+                
             return metadata;
         }
-            
-        return metadata;
     }
 }
-
