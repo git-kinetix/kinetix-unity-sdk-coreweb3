@@ -20,9 +20,9 @@ namespace Kinetix.Internal
         /// Connect Wallet with Wallet Address
         /// </summary>
         /// <param name="_WalletAddress">Wallet address of user</param>
-        public void ConnectWallet(string _WalletAddress)
+        public void ConnectWallet(string _WalletAddress, Action _OnSuccess = null)
         {
-            KinetixAccountBehaviour.ConnectWallet(_WalletAddress);
+            KinetixAccountBehaviour.ConnectWallet(_WalletAddress, _OnSuccess);
         }
         
         /// <summary>

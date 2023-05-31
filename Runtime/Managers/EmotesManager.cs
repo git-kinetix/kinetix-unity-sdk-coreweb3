@@ -11,11 +11,21 @@ namespace Kinetix.Internal
     public static class EmotesManager
     {
         private static Dictionary<string, KinetixEmote> kinetixEmotes;
+        private static Queue<AvatarEmotePair> toClearQueue;
+
+
+        public struct AvatarEmotePair
+        {
+            public KinetixAvatar Avatar;
+            public AnimationIds EmoteIds;
+        }
+
 
         public static void Initialize()
         {
             MonoBehaviourHelper.Instance.OnDestroyEvent += OnDestroy;
-            kinetixEmotes                               =  new Dictionary<string, KinetixEmote>();
+            kinetixEmotes = new Dictionary<string, KinetixEmote>();
+            toClearQueue = new Queue<AvatarEmotePair>();
         }
 
         public static KinetixEmote GetEmote(AnimationIds _AnimationIds)
@@ -202,21 +212,36 @@ namespace Kinetix.Internal
 
         public static void ClearEmote(KinetixAvatar _KinetixAvatar, AnimationIds _Ids)
         {
-            try
-            {
-                if (_KinetixAvatar == null)
-                    return;
+            toClearQueue ??= new Queue<AvatarEmotePair>();
 
-                if (_KinetixAvatar.Equals(LocalPlayerManager.KAvatar) && LocalPlayerManager.IsEmoteUsedByPlayer(_Ids))
-                    return;
+            toClearQueue.Enqueue(new AvatarEmotePair { Avatar = _KinetixAvatar, EmoteIds = _Ids });
 
-                KinetixDebug.Log("[CLEAR] Animation : " + _Ids);
-                GetEmote(_Ids).ClearAvatar(_KinetixAvatar);
-                FileOperationManager.ClearEmote(_Ids);
-            }
-            catch (Exception e)
-            {
-                KinetixDebug.LogWarning("Can't clear animation : " + e.Message);
+            LocalPlayerManager.OnAnimationEndOnLocalPlayerAnimator += OnLocalAnimationEnded;
+        }
+
+        public static void OnLocalAnimationEnded(AnimationIds ids)
+        {
+            LocalPlayerManager.OnAnimationEndOnLocalPlayerAnimator -= OnLocalAnimationEnded;
+
+            foreach (AvatarEmotePair emoteAndAvatar in toClearQueue) {
+                try
+                {
+                    if (emoteAndAvatar.Avatar == null)
+                        return;
+
+                    if (emoteAndAvatar.Avatar.Equals(LocalPlayerManager.KAvatar) && LocalPlayerManager.IsEmoteUsedByPlayer(emoteAndAvatar.EmoteIds))
+                        return;
+
+                    KinetixDebug.Log("[CLEAR] Animation : " + emoteAndAvatar.EmoteIds);
+                    
+                    //GetEmote(emoteAndAvatar.EmoteIds).ClearAvatar(emoteAndAvatar.Avatar);
+
+                    FileOperationManager.ClearEmote(emoteAndAvatar.EmoteIds);
+                }
+                catch (Exception e)
+                {
+                    KinetixDebug.LogWarning("Can't clear animation : " + e.Message);
+                }
             }
         }
 

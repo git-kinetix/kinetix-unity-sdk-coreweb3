@@ -38,7 +38,7 @@ namespace Kinetix.Utils
                 {
                     if (!MemoryManager.FileExists(filePath))
                     {
-                        throw new Exception("File does not exists after downloading GLB");
+                        tcs.SetException(new Exception("File does not exists after downloading GLB"));
                     }
                     
                     KinetixDebug.Log("Downloaded : " + filePath);
@@ -46,7 +46,8 @@ namespace Kinetix.Utils
                     KinetixAnalytics.SendEvent("Download_Animation", _UUID, KinetixAnalytics.Page.None, KinetixAnalytics.Event_type.Click);
                     
                     tcs.SetResult(filePath);
-                }, () => throw new Exception("Failed downloading GLB"));
+                }, () => 
+                    tcs.SetException(new Exception("Failed downloading GLB")));
             }
             catch (Exception e)
             {

@@ -5,9 +5,9 @@ namespace Kinetix.Internal
     internal static class KinetixAccountBehaviour
     {
 
-        public static void ConnectWallet(string _WalletAddress)
+        public static void ConnectWallet(string _WalletAddress, Action _OnSuccess = null)
         {
-            AccountManager.ConnectWallet(_WalletAddress);
+            AccountManager.ConnectWallet(_WalletAddress, _OnSuccess);
         }
         
         public static void DisconnectWallet(string _WalletAddress)

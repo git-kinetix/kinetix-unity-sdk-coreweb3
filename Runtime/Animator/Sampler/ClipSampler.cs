@@ -195,7 +195,7 @@ namespace Kinetix.Internal
 		/// </summary>
 		private void OnBlendInterEnded()
 		{
-			if (m_blendState == BlendState.IN) {
+			if (m_blendState == BlendState.IN || m_blendState == BlendState.OUT) {
 				m_blendAnimations.OnBlendEnded -= OnBlendInterEnded;
 				m_time = 0f;
 				m_blendState = BlendState.SAMPLE;

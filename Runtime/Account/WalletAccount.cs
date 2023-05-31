@@ -6,3 +6,4 @@ namespace Kinetix.Internal
         public WalletAccount(string _WalletId) : base (_WalletId) {}
     }
 }
+
