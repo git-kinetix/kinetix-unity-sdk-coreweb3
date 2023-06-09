@@ -28,7 +28,7 @@ public static class FileOperationManager
         return await tcs.Task;
     }
 
-    public static void ClearEmote(AnimationIds emoteIds)
+    private static void ClearEmote(AnimationIds emoteIds)
     {
         if (operationsFileDownloader != null && operationsFileDownloader.ContainsKey(emoteIds)) {
             operationsFileDownloader.Remove(emoteIds);
@@ -38,8 +38,11 @@ public static class FileOperationManager
     private static async void DequeueOperations()
     {
         (OperationFileDownloader operation, TaskCompletionSource<string> tcs) = queue.Peek();
-
+        
         string path = await operation.Execute();
+
+        ClearEmote(operation.kinetixEmote.Ids);
+        
         tcs.SetResult(path);
         queue.Dequeue();
 

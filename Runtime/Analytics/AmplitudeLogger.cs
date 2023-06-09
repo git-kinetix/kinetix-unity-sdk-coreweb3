@@ -28,7 +28,7 @@ namespace Kinetix.Internal
             }
         }
 
-        public void SendEvent(string event_name="default", string idAnimation ="", KinetixAnalytics.Page page=KinetixAnalytics.Page.EmoteWheel, KinetixAnalytics.Event_type event_type=KinetixAnalytics.Event_type.Click, int tile_in_wheel=-1, int page_in_wheel=-1)
+        public void SendEvent(string event_name="default", string idAnimation ="", KinetixAnalytics.Page page=KinetixAnalytics.Page.EmoteWheel, KinetixAnalytics.Event_type event_type=KinetixAnalytics.Event_type.Click, int tile_in_wheel=-1)
         {
             Init();
 
@@ -53,11 +53,6 @@ namespace Kinetix.Internal
             {
                 jsonData.events.event_properties.Add("idAnimation", idAnimation);
             }
-
-            //type string : 
-            // jsonData= {"api_key":"bc0ca01931bf1943c7671c9de3082d8f","events":{"user_id":"tepath@gmail.com","event_type":"watch_tutorial_json","user_properties":{"test1":"oui oui","test2":"oui oui","test3":"oui oui"},"event_properties":{},"app_version":null,"platform":null,"country":"france"}}
-
-            Debug.Log("KinetixAnalytics SendEvent: " + JsonConvert.SerializeObject(jsonData));
 
             Uri             uri        = new Uri(url);
             UnityWebRequest uwr        = new UnityWebRequest(uri, "POST");

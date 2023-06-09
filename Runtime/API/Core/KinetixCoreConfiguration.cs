@@ -25,5 +25,6 @@ namespace Kinetix
 
         // Network Configuration        
         public KinetixNetworkConfiguration NetworkConfiguration;
+        
     }
 }

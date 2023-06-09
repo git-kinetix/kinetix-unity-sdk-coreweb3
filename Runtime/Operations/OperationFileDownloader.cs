@@ -9,7 +9,7 @@ namespace Kinetix.Internal
 {
     public class OperationFileDownloader : OperationAsync<string>
     {
-        private readonly KinetixEmote kinetixEmote;
+        public KinetixEmote kinetixEmote;
         private          string       path;
         
         public OperationFileDownloader(KinetixEmote _KinetixEmote)
@@ -27,15 +27,22 @@ namespace Kinetix.Internal
                     return "";
                 if (string.IsNullOrEmpty(kinetixEmote.Metadata.AnimationURL))
                     return "";
-                
-                Task<string> task = KinetixDownloader.DownloadAndCacheGLB(kinetixEmote.Ids.UUID, kinetixEmote.Metadata.AnimationURL);
 
-                ProgressStatus = EProgressStatus.PENDING;
-                Task           = task;
+                try
+                {
+                    Task<string> task = KinetixDownloader.DownloadAndCacheGLB(kinetixEmote.Ids.UUID, kinetixEmote.Metadata.AnimationURL);
+                    ProgressStatus = EProgressStatus.PENDING;
+                    Task           = task;
 
-                path           = await task;
-                ProgressStatus = EProgressStatus.COMPLETED;
-                return path;
+                    path           = await task;
+                    ProgressStatus = EProgressStatus.COMPLETED;
+                    return path;
+                }
+                catch (Exception)
+                {
+                    ProgressStatus = EProgressStatus.COMPLETED;
+                    return null;
+                }
             }
 
             if (ProgressStatus != EProgressStatus.COMPLETED)

@@ -41,8 +41,6 @@ namespace Kinetix.Internal
                     AddEmoteFromMetadata(animationMetadatas[i]);
                 }
                 
-                AccountManager.OnUpdatedAccount?.Invoke();
-
                 return emotes.ToArray();
             }
             catch (Exception)
@@ -78,7 +76,7 @@ namespace Kinetix.Internal
 
             foreach (KinetixEmote emote in emotes)
             {
-                if (emote.Metadata.Ids == emoteIds)
+                if (emoteIds.Equals(emote.Metadata.Ids))
                 {
                     return true;
                 }

@@ -47,7 +47,7 @@ namespace Kinetix.Internal
         /// </summary>
         public static void UnregisterLocalPlayer()
         {
-            LocalPlayerManager.RemovePlayerCharacterComponent();
+            LocalPlayerManager.UnregisterPlayerComponent();
         }
 
         public static void PlayAnimationOnLocalPlayer(AnimationIds _Ids, Action<AnimationIds> _OnPlayedAnimation)
@@ -70,24 +70,44 @@ namespace Kinetix.Internal
             LocalPlayerManager.StopAnimation();
         }
 
-        public static void LoadLocalPlayerAnimation(AnimationIds _Ids, Action _OnSuccess)
+        public static void LoadLocalPlayerAnimation(AnimationIds _Ids, string _LockId, Action _OnSuccess)
         {
-            LocalPlayerManager.LoadLocalPlayerAnimation(_Ids, _OnSuccess);
+            LocalPlayerManager.LoadLocalPlayerAnimation(_Ids, _LockId, _OnSuccess);
         }
         
-        public static void LoadLocalPlayerAnimations(AnimationIds[] _Ids, Action _OnSuccess)
+        public static void LoadLocalPlayerAnimations(AnimationIds[] _Ids, string _LockId, Action _OnSuccess)
         {
-            LocalPlayerManager.LoadLocalPlayerAnimations(_Ids, _OnSuccess);
+            LocalPlayerManager.LoadLocalPlayerAnimations(_Ids, _LockId, _OnSuccess);
         }
         
-        public static void UnloadLocalPlayerAnimation(AnimationIds _Ids)
+        public static void UnloadLocalPlayerAnimation(AnimationIds _Ids, string _LockId)
         {
-            LocalPlayerManager.UnloadLocalPlayerAnimation(_Ids);
+            LocalPlayerManager.UnloadLocalPlayerAnimation(_Ids, _LockId);
         }
         
-        public static void UnloadLocalPlayerAnimations(AnimationIds[] _Ids)
+        public static void UnloadLocalPlayerAnimations(AnimationIds[] _Ids, string _LockId)
         {
-            LocalPlayerManager.UnloadLocalPlayerAnimations(_Ids);
+            LocalPlayerManager.UnloadLocalPlayerAnimations(_Ids, _LockId);
+        }
+
+        public static void LockLocalPlayerAnimation(AnimationIds _Ids, string _LockId)
+        {
+            LocalPlayerManager.LockLocalPlayerAnimation(_Ids, _LockId);
+        }
+        
+        public static void LockLocalPlayerAnimations(AnimationIds[] _Ids, string _LockId)
+        {
+            LocalPlayerManager.LockLocalPlayerAnimations(_Ids, _LockId);
+        }
+
+        public static void UnlockLocalPlayerAnimation(AnimationIds _Ids, string _LockId)
+        {
+            LocalPlayerManager.UnlockLocalPlayerAnimation(_Ids, _LockId);
+        }
+        
+        public static void UnlockLocalPlayerAnimations(AnimationIds[] _Ids, string _LockId)
+        {
+            LocalPlayerManager.UnlockLocalPlayerAnimations(_Ids, _LockId);
         }
 
         public static bool IsAnimationAvailableOnLocalPlayer(AnimationIds _Ids)

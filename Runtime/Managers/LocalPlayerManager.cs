@@ -75,25 +75,38 @@ namespace Kinetix.Internal.Cache
             EmotesManager.GetAnimationClip(_AnimationIds, KAvatar, SequencerPriority.VeryLow, true, _OnSuccess, _OnFailure);
         }
         
-        public static void RemovePlayerCharacterComponent()
+        public static void UnregisterPlayerComponent()
         {
-            LocalKinetixCharacterComponent.Dispose();
+            if (LocalKinetixCharacterComponent != null)
+            {
+                LocalKinetixCharacterComponent.Dispose();
+                LocalKinetixCharacterComponent = null;
+            }
+            
+            ForceUnloadLocalPlayerAnimations(downloadedEmotesReadyToPlay.ToArray());
+            emotesToPreload.Clear();
+            callbackOnRetargetedAnimationIdOnLocalPlayer.Clear();
+            downloadedEmotesReadyToPlay.Clear();
             KAvatar                        = null;
-            LocalKinetixCharacterComponent = null;
         }
 
         #region LOAD
-        public static void LoadLocalPlayerAnimation(AnimationIds _Ids, Action _OnSuccess = null, Action _OnFailure = null)
+        public static void LoadLocalPlayerAnimation(AnimationIds _Ids, string _LockId, Action _OnSuccess = null, Action _OnFailure = null)
         {
             KinetixEmote emote = EmotesManager.GetEmote(_Ids);
+            emote.Lock(_LockId);
+            
             LoadLocalPlayerAnimationInternal(emote, _OnSuccess, _OnFailure);
         }
 
-        public static void LoadLocalPlayerAnimations(AnimationIds[] _Ids, Action _OnSuccess = null, Action _OnFailure = null)
+        public static void LoadLocalPlayerAnimations(AnimationIds[] _Ids, string _LockId, Action _OnSuccess = null, Action _OnFailure = null)
         {
             KinetixEmote[] kinetixEmotes   = new KinetixEmote[_Ids.Length];
             for (int i = 0; i < kinetixEmotes.Length; i++)
+            {
                 kinetixEmotes[i] = EmotesManager.GetEmote(_Ids[i]);
+                kinetixEmotes[i].Lock(_LockId);
+            }
 
             int toLoadAnimations = kinetixEmotes.Length;
             foreach (KinetixEmote kinetixEmote in kinetixEmotes)
@@ -109,7 +122,12 @@ namespace Kinetix.Internal.Cache
                     _OnFailure?.Invoke();
                 });
             }
+        }
 
+        // To be called only in this class in case emote are preloaded with a lock
+        private static void LoadLocalPlayerAnimations(AnimationIds[] _Ids, Action _OnSuccess = null, Action _OnFailure = null)
+        {
+            LoadLocalPlayerAnimations(_Ids, "", _OnSuccess, _OnFailure);
         }
 
         private static void LoadLocalPlayerAnimationInternal(KinetixEmote _KinetixEmote, Action _OnSuccess, Action _OnFailure)
@@ -138,36 +156,78 @@ namespace Kinetix.Internal.Cache
         #endregion
 
         #region UNLOAD
-        public static void UnloadLocalPlayerAnimation(AnimationIds _Ids)
+        public static void UnloadLocalPlayerAnimation(AnimationIds _Ids, string _LockId)
         {
-            UnloadLocalPlayerAnimationInternal(_Ids);
-            EmotesManager.ClearEmote(KAvatar, _Ids);
+            UnlockLocalPlayerAnimation(_Ids, _LockId);
+            RemoveLocalPlayerEmotesReadyToPlay(_Ids);
         }
 
-        public static void UnloadLocalPlayerAnimations(AnimationIds[] _Ids)
+        public static void UnloadLocalPlayerAnimations(AnimationIds[] _Ids, string _LockId = "")
         {
             foreach (AnimationIds ids in _Ids)
             {
-                UnloadLocalPlayerAnimationInternal(ids);
-            }
-
-            foreach (AnimationIds ids in _Ids)
-            {
-                EmotesManager.ClearEmote(KAvatar, ids);
+                UnlockLocalPlayerAnimation(ids, _LockId);
+                RemoveLocalPlayerEmotesReadyToPlay(ids);
             }
         }
 
-        private static void UnloadLocalPlayerAnimationInternal(AnimationIds _Ids)
+        public static void ForceUnloadLocalPlayerAnimations(AnimationIds[] _Ids)
+        {
+            foreach (AnimationIds ids in _Ids)
+            {
+                RemoveLocalPlayerEmotesReadyToPlay(ids);
+                EmotesManager.ForceUnloadEmote(ids, KAvatar);
+            }
+        }
+
+        public static void RemoveLocalPlayerEmotesToPreload(AnimationIds[] _Ids)
+        {
+            emotesToPreload ??= new List<AnimationIds>();
+            for (int i = 0; i < _Ids.Length; i++)
+            {
+                if (emotesToPreload.Contains(_Ids[i]))
+                    emotesToPreload.Remove(_Ids[i]);
+            }
+        }
+        
+        private static void RemoveLocalPlayerEmotesReadyToPlay(AnimationIds _Ids)
         {
             downloadedEmotesReadyToPlay ??= new List<AnimationIds>();
-            
-            if (!downloadedEmotesReadyToPlay.Contains(_Ids))
-                return;
-
-            downloadedEmotesReadyToPlay.Remove(_Ids);
+            if (downloadedEmotesReadyToPlay.Contains(_Ids))
+                downloadedEmotesReadyToPlay.Remove(_Ids);
         }
+        
         #endregion
 
+        #region LOCKS
+        
+        public static void LockLocalPlayerAnimation(AnimationIds _Ids, string _LockId)
+        {
+            EmotesManager.LockEmote(_Ids, _LockId);
+        }
+        
+        public static void LockLocalPlayerAnimations(AnimationIds[] _Ids, string _LockId)
+        {
+            foreach (AnimationIds ids in _Ids)
+            {
+                LockLocalPlayerAnimation(ids, _LockId);
+            }
+        }
+
+        public static void UnlockLocalPlayerAnimation(AnimationIds _Ids, string _LockId)
+        {
+            EmotesManager.UnlockEmote(_Ids, _LockId, KAvatar);
+        }
+        
+        public static void UnlockLocalPlayerAnimations(AnimationIds[] _Ids, string _LockId)
+        {
+            foreach (AnimationIds ids in _Ids)
+            {
+                UnlockLocalPlayerAnimation(ids, _LockId);
+            }
+        }
+
+        #endregion
         
         public static bool IsAnimationAvailable(AnimationIds _Ids)
         {

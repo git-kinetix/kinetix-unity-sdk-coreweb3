@@ -13,12 +13,14 @@ namespace Kinetix.Internal
         public AnimationIds      Ids      { get; }
         public bool IsLocal { get { return isLocal; } }
         public AnimationMetadata Metadata { get; private set; }
+        public List<string> Locks { get { return locks; } }
 
         private string                  pathGLB;
 
         private readonly Dictionary<KinetixAvatar, EmoteRetargetedData> retargetedEmoteByAvatar;
         private readonly Dictionary<KinetixAvatar, List<string>>        lockedMemoryAvatar;
         private readonly Dictionary<KinetixAvatar, List<Action>>        OnEmoteRetargetedByAvatar;
+        private List<string> locks;
 
         // We store a list of avatar if emote should be deleted but playing right now and delete after unlock
         private readonly List<KinetixAvatar> avatarsToDeleteAfterUnlock;
@@ -32,6 +34,48 @@ namespace Kinetix.Internal
             OnEmoteRetargetedByAvatar  = new Dictionary<KinetixAvatar, List<Action>>();
             lockedMemoryAvatar         = new Dictionary<KinetixAvatar, List<string>>();
             avatarsToDeleteAfterUnlock = new List<KinetixAvatar>();
+            locks = new List<string>();
+        }
+
+        public void Lock(string lockId)
+        {
+            if (string.IsNullOrEmpty(lockId))
+                return;
+            
+            if (locks.Contains(lockId))
+                return;
+
+            KinetixDebug.Log("[LOCK] Animation : " + Ids + " by " + lockId);
+
+            locks.Add(lockId);
+        }
+
+        public void Unlock(string lockId, KinetixAvatar avatar)
+        {
+            if (!locks.Contains(lockId))
+            {
+                KinetixDebug.LogWarning("Tried to unlock emote " + Ids + " but it wasn't locked anymore and should have been disposed already.");
+                return;
+            }
+
+            locks.Remove(lockId);
+
+            KinetixDebug.Log("[UNLOCK] Animation : " + Ids + ". Locks left: " + locks.Count);
+
+            if (locks.Count == 0)
+                Unload(avatar);
+        }
+
+        public void ForceUnload(KinetixAvatar avatar)
+        {
+            KinetixDebug.Log("[FORCE UNLOAD] Animation : " + Ids);
+
+            Unload(avatar);
+        }
+
+        private void Unload(KinetixAvatar avatar)
+        {
+            EmotesManager.ClearEmote(avatar, Ids);
         }
 
         /// <summary>
@@ -147,13 +191,13 @@ namespace Kinetix.Internal
                 tcs.SetException(new Exception("Not enough storage space available to retarget : " + Ids.UUID));
                 return await tcs.Task;
             }
-            
+
             if (!_Force && MemoryManager.HasRAMExceedMemoryLimit())
             {
                 tcs.SetException(new Exception("Not enough RAM space to retarget : " + Ids.UUID));
                 return await tcs.Task;
             }
-            
+
             if (!HasMetadata())
             {
                 try
@@ -194,7 +238,7 @@ namespace Kinetix.Internal
                         tcs.SetException(new Exception("Not enough storage space available to retarget : " + Ids.UUID));
                         return await tcs.Task;
                     }
-                    
+
                     if (MemoryManager.HasRAMExceedMemoryLimit())
                     {
                         tcs.SetException(new Exception("Not enough RAM space to retarget : " + Ids.UUID));
@@ -203,8 +247,10 @@ namespace Kinetix.Internal
 
                     try
                     {
+                        SequencerCancel cancelToken = new SequencerCancel();
+                        retargetedEmoteByAvatar[_Avatar].CancelToken    = cancelToken;
                         retargetedEmoteByAvatar[_Avatar].ProgressStatus = EProgressStatus.PENDING;
-
+                        
                         string path = await GetFilePath();
 
                         if (string.IsNullOrEmpty(path))
@@ -216,9 +262,13 @@ namespace Kinetix.Internal
 #if (UNITY_WEBGL || UNITY_ANDROID) && !UNITY_EDITOR
                             useWebRequest = isLocal;
 #endif
+
+                            if (cancelToken.canceled)
+                            {
+                                tcs.SetException(new Exception($"Retargeting for emote {Ids.UUID} was cancelled"));
+                                return null;
+                            }
                             
-                            SequencerCancel cancelToken = new SequencerCancel();
-                            retargetedEmoteByAvatar[_Avatar].CancelToken = cancelToken;
                             RetargetingManager.GetRetargetedAnimationClip<AnimationClip, AnimationClipExport>(_Avatar.Avatar, _Avatar.Root, path, _Priority, cancelToken, (clip, estimationSize) =>
                             {
                                 
@@ -237,7 +287,6 @@ namespace Kinetix.Internal
 
                                     MemoryManager.CheckStorage();
                                     MemoryManager.CheckRAM(Ids.UUID, _Avatar);
-
                                     
                                     if (MemoryManager.HasRAMExceedMemoryLimit())
                                     {
@@ -255,6 +304,7 @@ namespace Kinetix.Internal
                                     tcs.SetResult(clip);
                                 }
                             }, useWebRequest: useWebRequest);
+                            
                         }
                     }
                     catch (Exception e)
@@ -312,25 +362,25 @@ namespace Kinetix.Internal
 
         public void ClearAvatar(KinetixAvatar _Avatar)
         {
-
-            if (IsRetargeting(_Avatar))
-            {
-                if (retargetedEmoteByAvatar[_Avatar].CancelToken != null)
-                    retargetedEmoteByAvatar[_Avatar].CancelToken.canceled = true;
+            if (!retargetedEmoteByAvatar.ContainsKey(_Avatar))
                 return;
-            }
-            
+
             if (OnEmoteRetargetedByAvatar.ContainsKey(_Avatar))
                 OnEmoteRetargetedByAvatar.Remove(_Avatar);
-
-            if (retargetedEmoteByAvatar.ContainsKey(_Avatar))
+            
+            if (retargetedEmoteByAvatar[_Avatar].ProgressStatus != EProgressStatus.COMPLETED)
+            {
+                if (retargetedEmoteByAvatar[_Avatar].CancelToken != null)
+                    retargetedEmoteByAvatar[_Avatar].CancelToken.Cancel();
+            }
+            else
             {
                 EmoteRetargetedData retargetedData = retargetedEmoteByAvatar[_Avatar];
-                retargetedEmoteByAvatar.Remove(_Avatar);
-
                 MemoryManager.RemoveRamAllocation(retargetedData.SizeInBytes);
                 MemoryManager.DeleteFileInRaM(retargetedData.AnimationClipLegacyRetargeted);
             }
+            
+            retargetedEmoteByAvatar.Remove(_Avatar);
 
             CheckAvatarsLeft();
         }

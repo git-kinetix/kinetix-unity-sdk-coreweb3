@@ -158,8 +158,7 @@ namespace Kinetix.Utils
                     www.result == UnityWebRequest.Result.ProtocolError ||
                     www.result == UnityWebRequest.Result.DataProcessingError)
                 {
-            
-                    tcs.SetResult(false); 
+                    tcs.SetException(new Exception(www.error));
                 }
                 else
                 {

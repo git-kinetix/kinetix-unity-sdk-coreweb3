@@ -14,9 +14,9 @@ namespace Kinetix.Internal
     {
         public static Action OnUpdatedAccount;
         public static Action OnConnectedAccount;
-        
+
         private static List<Account> Accounts;
-        private static string VirtualWorldId;
+        private static string        VirtualWorldId;
 
 
         public static void Initialize()
@@ -26,14 +26,12 @@ namespace Kinetix.Internal
 
         public static void Initialize(string _VirtualWorldId)
         {
-            Accounts = new List<Account>(); 
-            AddFreeAnimations();
+            Accounts = new List<Account>();
 
             VirtualWorldId = _VirtualWorldId;
         }
 
-
-        public static void ConnectWallet(string _WalletAddress)
+        public static void ConnectWallet(string _WalletAddress, Action _OnSuccess = null)
         {
             if (IsAccountAlreadyConnected(_WalletAddress))
             {
@@ -42,6 +40,10 @@ namespace Kinetix.Internal
 
             WalletAccount account = new WalletAccount(_WalletAddress);
             Accounts.Add(account);
+
+            OnUpdatedAccount?.Invoke();
+
+            _OnSuccess?.Invoke();
         }
 
         public static void DisconnectWallet(string _WalletAddress)
@@ -59,6 +61,16 @@ namespace Kinetix.Internal
             RemoveEmotesAndAccount(foundIndex);
         }
 
+        public static void DisconnectAllWallets()
+        {
+            foreach (Account acc in Accounts)
+            {
+                if (acc is WalletAccount)
+                    DisconnectWallet(acc.AccountId);
+            }
+        }
+
+
         public static bool IsAccountAlreadyConnected(string _AccountId)
         {
             foreach (Account acc in Accounts)
@@ -72,38 +84,15 @@ namespace Kinetix.Internal
             return false;
         }
 
-        public static void DisconnectAllWallets()
-        {
-            foreach (Account acc in Accounts)
-            {
-                if (acc is WalletAccount)
-                    DisconnectWallet(acc.AccountId);
-            }
-        }
 
         public static async void GetAllUserEmotes(Action<AnimationMetadata[]> _OnSuccess, Action _OnFailure = null)
         {
             List<KinetixEmote> emotesAccountAggregation = new List<KinetixEmote>();
-            int                countAccount = Accounts.Count;
-
-            try
-            {
-                KinetixEmote[] freeEmotes = await FreeAnimationsManager.GetFreeEmotes();            
-                emotesAccountAggregation.AggregateAndDistinct(freeEmotes);
-            }
-            catch (OperationCanceledException)
-            {
-                _OnFailure?.Invoke();
-            }
-            catch (Exception e)
-            {
-                KinetixDebug.LogWarning(e.Message);
-                _OnFailure?.Invoke();
-            }
+            int                countAccount             = Accounts.Count;
 
 
             if (Accounts.Count == 0)
-            {                
+            {
                 _OnSuccess?.Invoke(emotesAccountAggregation.Select(emote => emote.Metadata).ToArray());
                 return;
             }
@@ -112,13 +101,13 @@ namespace Kinetix.Internal
             {
                 for (int i = 0; i < Accounts.Count; i++)
                 {
-                    KinetixEmote[]     accountEmotes = await Accounts[i].FetchMetadatas();
-                    
+                    KinetixEmote[] accountEmotes = await Accounts[i].FetchMetadatas();
+
                     List<KinetixEmote> accountEmotesList = accountEmotes.ToList();
 
                     // Remove all animations with are duplicated and not owned
                     emotesAccountAggregation.RemoveAll(metadata => accountEmotesList.Exists(emote => emote.Ids.UUID == metadata.Ids.UUID && emote.Metadata.Ownership != EOwnership.OWNER));
-                    
+
                     emotesAccountAggregation.AggregateAndDistinct(accountEmotes);
                     countAccount--;
 
@@ -137,16 +126,11 @@ namespace Kinetix.Internal
             }
         }
 
-        public static void AddFreeAnimations()
-        {
-            FreeAnimationsManager.AddFreeAnimations(OnUpdatedAccount);
-        }
-        
         public static void IsAnimationOwnedByUser(AnimationIds _AnimationIds, Action<bool> _OnSuccess, Action _OnFailure = null)
         {
             GetAllUserEmotes(metadatas => { _OnSuccess.Invoke(metadatas.ToList().Exists(metadata => metadata.Ids.Equals(_AnimationIds))); }, _OnFailure);
         }
-        
+
         public static void GetUserAnimationsMetadatasByPage(int _Count, int _Page, Action<AnimationMetadata[]> _Callback, Action _OnFailure)
         {
             GetAllUserEmotes(animationMetadatas =>
@@ -179,11 +163,10 @@ namespace Kinetix.Internal
             }, () => { _OnFailure?.Invoke(); });
         }
 
-        
 
         private static void RemoveEmotesAndAccount(int accountIndex)
         {
-            if (accountIndex == -1) 
+            if (accountIndex == -1)
                 return;
 
             GetAllUserEmotes(beforeAnimationMetadatas =>
@@ -197,11 +180,11 @@ namespace Kinetix.Internal
                     List<AnimationIds> idsAfterRemoveWallet = afterAnimationMetadatas.ToList().Select(metadata => metadata.Ids).ToList();
                     idsBeforeRemoveWallet = idsBeforeRemoveWallet.Except(idsAfterRemoveWallet).ToList();
 
-                    LocalPlayerManager.UnloadLocalPlayerAnimations(idsBeforeRemoveWallet.ToArray());
+                    LocalPlayerManager.ForceUnloadLocalPlayerAnimations(idsBeforeRemoveWallet.ToArray());
+                    LocalPlayerManager.RemoveLocalPlayerEmotesToPreload(idsBeforeRemoveWallet.ToArray());
                     OnUpdatedAccount?.Invoke();
                 });
             });
         }
-
     }
 }

@@ -18,6 +18,7 @@ namespace Kinetix
             EmoteWheel,
             Inventory,
             Create,
+            Context,
             None
         }
 
@@ -34,10 +35,10 @@ namespace Kinetix
         /// <summary>
         ///     Send Event
         /// </summary>
-        public static void SendEvent(string event_name, string idAnimation="", Page page=Page.EmoteWheel, Event_type event_type=Event_type.Click, int tile_in_wheel=-1, int page_in_wheel=-1)
+        public static void SendEvent(string event_name, string idAnimation="", Page page=Page.EmoteWheel, Event_type event_type=Event_type.Click, int tile_in_wheel=-1)
         {
             if(isEnabled)
-                EventLogger.SendEvent(event_name, idAnimation, page, event_type, tile_in_wheel, page_in_wheel);
+                EventLogger.SendEvent(event_name, idAnimation, page, event_type, tile_in_wheel);
         }
 
         public static void Initialize(bool _isEnabled)
