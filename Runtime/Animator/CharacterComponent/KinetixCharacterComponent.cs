@@ -52,7 +52,7 @@ namespace Kinetix
         {
             if (_AnimationIds.UUID == null)
             {
-                KinetixDebug.LogWarning("Animation ID cannot be null when Play Animation");
+                KinetixDebug.LogWarning($"Animation {_AnimationIds.UUID} cannot be null when Play Animation");
                 return;
             }
             
@@ -69,10 +69,17 @@ namespace Kinetix
             {
                 if (ids.UUID == null)
                 {
-                    Debug.LogWarning("Animation ID cannot be null when Play Animation");
+                    KinetixDebug.LogWarning($"Animation {ids.UUID} cannot be null when Play Animation");
+                    return;
+                }
+
+                if (!EmotesManager.GetEmote(ids).HasAnimationRetargeted(kinetixAvatar))
+                {
+                    KinetixDebug.LogWarning($"Animation {ids.UUID} was not loaded when Play Animation");
                     return;
                 }
             }
+            
 
             EmotesManager.GetAnimationsClip(animationQueue.m_animationsIds, kinetixAvatar, _Local ? SequencerPriority.VeryHigh : SequencerPriority.High, _Local, (clips) =>
             {

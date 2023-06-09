@@ -122,39 +122,83 @@ namespace Kinetix.Internal
 		/// Load a local player animation
 		/// </summary>
 		/// <param name="_AnimationIds">IDs of the animation</param>
+		/// <param name="_LockId">Arbitrary Identifier of the component asking for the animation, to pass when unloading the animation</param>
 		/// <param name="_OnSuccess">Callback when successfully loaded animation</param>
-		public void LoadLocalPlayerAnimation(AnimationIds _AnimationIds, Action _OnSuccess = null)
+		public void LoadLocalPlayerAnimation(AnimationIds _AnimationIds, string _LockId, Action _OnSuccess = null)
 		{
-			KinetixAnimationBehaviour.LoadLocalPlayerAnimation(_AnimationIds, _OnSuccess);
+			KinetixAnimationBehaviour.LoadLocalPlayerAnimation(_AnimationIds, _LockId, _OnSuccess);
 		}
 		
 		/// <summary>
 		/// Load local player animations
 		/// </summary>
 		/// <param name="_AnimationIds">IDs of the animations</param>
+		/// <param name="_LockId">Arbitrary Identifier of the component asking for the animation, to pass when unloading the animation</param>
 		/// <param name="_OnSuccess">Callback when successfully loaded animations</param>
-		public void LoadLocalPlayerAnimations(AnimationIds[] _AnimationIds, Action _OnSuccess = null)
+		public void LoadLocalPlayerAnimations(AnimationIds[] _AnimationIds, string _LockId, Action _OnSuccess = null)
 		{
-			KinetixAnimationBehaviour.LoadLocalPlayerAnimations(_AnimationIds, _OnSuccess);
+			KinetixAnimationBehaviour.LoadLocalPlayerAnimations(_AnimationIds, _LockId, _OnSuccess);
 		}
 		
 		/// <summary>
 		/// Unload a local player animation
 		/// </summary>
 		/// <param name="_AnimationIds">IDs of the animation</param>
-		public void UnloadLocalPlayerAnimation(AnimationIds _AnimationIds)
+		/// <param name="_LockId">Arbitrary Identifier of the component asking for the animation, to pass when unloading the animation</param>
+		public void UnloadLocalPlayerAnimation(AnimationIds _AnimationIds, string _LockId)
 		{
-			KinetixAnimationBehaviour.UnloadLocalPlayerAnimation(_AnimationIds);
+			KinetixAnimationBehaviour.UnloadLocalPlayerAnimation(_AnimationIds, _LockId);
 		}
 		
 		/// <summary>
 		/// Unload local player animations
 		/// </summary>
 		/// <param name="_AnimationIds">IDs of the animations</param>
-		public void UnloadLocalPlayerAnimations(AnimationIds[] _AnimationIds)
+		/// <param name="_LockId">Arbitrary Identifier of the component asking for the animation, to pass when unloading the animation</param>
+		public void UnloadLocalPlayerAnimations(AnimationIds[] _AnimationIds, string _LockId)
 		{
-			KinetixAnimationBehaviour.UnloadLocalPlayerAnimations(_AnimationIds);
+			KinetixAnimationBehaviour.UnloadLocalPlayerAnimations(_AnimationIds, _LockId);
 		}
+
+		/// <summary>
+		/// Lock a local player animation, preventing its removal from memory
+		/// </summary>
+		/// <param name="_AnimationIds">IDs of the animations</param>
+		/// <param name="_LockId">Arbitrary Identifier of the component asking for the animation, to pass when unloading the animation</param>
+		public void LockLocalPlayerAnimation(AnimationIds _Ids, string _LockId)
+        {
+            KinetixAnimationBehaviour.LockLocalPlayerAnimation(_Ids, _LockId);
+        }
+        
+		/// <summary>
+		/// Lock all local player animations, preventing their removal from memory
+		/// </summary>
+		/// <param name="_AnimationIds">IDs of the animations</param>
+		/// <param name="_LockId">Arbitrary Identifier of the component asking for the animation, to pass when unloading the animation</param>
+        public void LockLocalPlayerAnimations(AnimationIds[] _Ids, string _LockId)
+        {
+            KinetixAnimationBehaviour.LockLocalPlayerAnimations(_Ids, _LockId);
+        }
+
+		/// <summary>
+		/// Remove a lock on a local player animation, allowing its removal from memory if all locks are removed
+		/// </summary>
+		/// <param name="_AnimationIds">IDs of the animations</param>
+		/// <param name="_LockId">Arbitrary Identifier of the component asking for the animation, to pass when unloading the animation</param>
+        public void UnlockLocalPlayerAnimation(AnimationIds _Ids, string _LockId)
+        {
+            KinetixAnimationBehaviour.UnlockLocalPlayerAnimation(_Ids, _LockId);
+        }
+        
+		/// <summary>
+		/// Remove a lock on all player animations, allowing their removal from memory if all of their locks are removed
+		/// </summary>
+		/// <param name="_AnimationIds">IDs of the animations</param>
+		/// <param name="_LockId">Arbitrary Identifier of the component asking for the animation, to pass when unloading the animation</param>
+        public void UnlockLocalPlayerAnimations(AnimationIds[] _Ids, string _LockId)
+        {
+            KinetixAnimationBehaviour.UnlockLocalPlayerAnimations(_Ids, _LockId);
+        }
 
 		/// <summary>
 		/// Is animation available on local player

@@ -31,7 +31,8 @@ namespace Kinetix.Internal
         public static KinetixEmote GetEmote(AnimationIds _AnimationIds)
         {
             if (!kinetixEmotes.ContainsKey(_AnimationIds.UUID))
-                kinetixEmotes.Add(_AnimationIds.UUID, new KinetixEmote(_AnimationIds));
+                kinetixEmotes.Add(_AnimationIds.UUID, new KinetixEmote(_AnimationIds));                
+
             return kinetixEmotes[_AnimationIds.UUID];
         }
 
@@ -115,7 +116,6 @@ namespace Kinetix.Internal
 
         public static async void LoadAnimation(KinetixEmote _KinetixEmote, KinetixAvatar _KinetixAvatar, SequencerPriority _Priority, Action _OnSuccess = null, Action _OnFailure = null)
         {
-            
             switch (_KinetixAvatar.ExportType)
             {
                 case EExportType.AnimationClipLegacy:
@@ -212,37 +212,35 @@ namespace Kinetix.Internal
 
         public static void ClearEmote(KinetixAvatar _KinetixAvatar, AnimationIds _Ids)
         {
-            toClearQueue ??= new Queue<AvatarEmotePair>();
+            KinetixEmote emote = GetEmote(_Ids);
+            
+            if (_KinetixAvatar == null)
+                return;
 
-            toClearQueue.Enqueue(new AvatarEmotePair { Avatar = _KinetixAvatar, EmoteIds = _Ids });
-
-            LocalPlayerManager.OnAnimationEndOnLocalPlayerAnimator += OnLocalAnimationEnded;
+            KinetixDebug.Log("[CLEAR] Animation : " + emote.Ids);
+                    
+            GetEmote(emote.Ids).ClearAvatar(_KinetixAvatar);
         }
 
-        public static void OnLocalAnimationEnded(AnimationIds ids)
+        public static void LockEmote(AnimationIds _Ids, string _LockId)
         {
-            LocalPlayerManager.OnAnimationEndOnLocalPlayerAnimator -= OnLocalAnimationEnded;
+            KinetixEmote emote = GetEmote(_Ids);
+            
+            emote.Lock(_LockId);
+        }
 
-            foreach (AvatarEmotePair emoteAndAvatar in toClearQueue) {
-                try
-                {
-                    if (emoteAndAvatar.Avatar == null)
-                        return;
+        public static void UnlockEmote(AnimationIds _Ids, string _LockId, KinetixAvatar _Avatar)
+        {
+            KinetixEmote emote = GetEmote(_Ids);
+            
+            emote.Unlock(_LockId, _Avatar);
+        }
 
-                    if (emoteAndAvatar.Avatar.Equals(LocalPlayerManager.KAvatar) && LocalPlayerManager.IsEmoteUsedByPlayer(emoteAndAvatar.EmoteIds))
-                        return;
-
-                    KinetixDebug.Log("[CLEAR] Animation : " + emoteAndAvatar.EmoteIds);
-                    
-                    //GetEmote(emoteAndAvatar.EmoteIds).ClearAvatar(emoteAndAvatar.Avatar);
-
-                    FileOperationManager.ClearEmote(emoteAndAvatar.EmoteIds);
-                }
-                catch (Exception e)
-                {
-                    KinetixDebug.LogWarning("Can't clear animation : " + e.Message);
-                }
-            }
+        public static void ForceUnloadEmote(AnimationIds _Ids, KinetixAvatar _Avatar)
+        {
+            KinetixEmote emote = GetEmote(_Ids);
+            
+            emote.ForceUnload(_Avatar);
         }
 
         private static int GetTotalKinetixAvatarByType(KinetixAvatar _KinetixAvatar)

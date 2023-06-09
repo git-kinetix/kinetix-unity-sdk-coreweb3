@@ -33,6 +33,8 @@ namespace Kinetix.Internal
         {
             KinetixDebug.c_ShowLog = _Configuration.ShowLogs;
             
+            MemoryManager.Initialize();
+            
             AssetManager.Initialize();
             ProviderManager.Initialize(EKinetixNodeProvider.ALCHEMY, _Configuration.NodeProvideAPIKey);
             EmotesManager.Initialize();

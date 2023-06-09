@@ -4,18 +4,23 @@ namespace Kinetix.Internal
 {
     public class KinetixContext
     {
-        public bool PlayContext(string contextName)
+        public bool PlayContext(string _ContextName)
         {
             // CONTEXTUAL EMOTES ARE NOT AVAILABLE FOR WEB 3
             return false;
         }
 
-        public void RegisterEmoteForContext(string contextName, string emoteUuid)
+        public void RegisterEmoteForContext(string _ContextName, string _EmoteUuid)
         {
             // CONTEXTUAL EMOTES ARE NOT AVAILABLE FOR WEB 3
         }
 
-        public ContextualEmote GetContextEmote(string contextName)
+        public void UnregisterEmoteForContext(string _ContextName)
+        {            
+            // CONTEXTUAL EMOTES ARE NOT AVAILABLE FOR WEB 3
+        }
+
+        public ContextualEmote GetContextEmote(string _ContextName)
         {
             // CONTEXTUAL EMOTES ARE NOT AVAILABLE FOR WEB 3
             return null;
@@ -25,6 +30,12 @@ namespace Kinetix.Internal
         {
             // CONTEXTUAL EMOTES ARE NOT AVAILABLE FOR WEB 3
             return null;
+        }
+
+        public bool IsContextEmoteAvailable(string _ContextName)
+        {
+            // CONTEXTUAL EMOTES ARE NOT AVAILABLE FOR WEB 3
+            return false;
         }
     }
 }

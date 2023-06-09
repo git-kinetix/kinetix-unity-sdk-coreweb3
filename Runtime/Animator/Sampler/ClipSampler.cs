@@ -12,6 +12,8 @@ namespace Kinetix.Internal
 		private readonly Color[] m_blendDebugColors = new Color[] { new Color(0.6f, 0.6f, 0.6f), Color.green, Color.yellow, Color.red, Color.magenta };
 #endif
 
+		const string LOCK_SAMPLER_ID = "ClipSampler";
+
 		public Action OnStop;
 
 		private AnimationClip			m_toPlay;
@@ -150,6 +152,7 @@ namespace Kinetix.Internal
 
 			m_time = m_blendInTime;
 			m_duration = animLength;
+
 			m_blendState = BlendState.IN;
 			
 			
@@ -172,6 +175,8 @@ namespace Kinetix.Internal
 			m_blendAnimations.OnBlendEnded -= OnBlendInEnded;
 
 			if (m_blendState == BlendState.IN) {
+				KinetixCore.Animation.LockLocalPlayerAnimation(m_animQueue.m_animationsIds[m_animIndex], LOCK_SAMPLER_ID);
+				
 				m_blendState = BlendState.SAMPLE;
 
 				rootMotionUtil.SaveOffsets();
@@ -265,6 +270,8 @@ namespace Kinetix.Internal
 				m_animatorToPause.Play(m_animatorStatesInfos[i].fullPathHash, i, m_animatorStatesInfos[i].normalizedTime);
 			}
 
+			KinetixCore.Animation.UnlockLocalPlayerAnimation(m_animQueue.m_animationsIds[m_animIndex], LOCK_SAMPLER_ID);
+			
 			m_blendState = BlendState.NONE;
 			m_time = -1;
 			m_toPlay = null;

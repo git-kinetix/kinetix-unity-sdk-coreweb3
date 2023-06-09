@@ -9,7 +9,7 @@ namespace Kinetix.Internal
 {
     public class OperationFileDownloader : OperationAsync<string>
     {
-        private readonly KinetixEmote kinetixEmote;
+        public KinetixEmote kinetixEmote;
         private          string       path;
         
         public OperationFileDownloader(KinetixEmote _KinetixEmote)

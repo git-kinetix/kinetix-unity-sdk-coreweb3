@@ -26,20 +26,22 @@ namespace Kinetix.Internal
             }
         }
 
-        public void SendEvent(string event_name="default", string idAnimation ="", KinetixAnalytics.Page page=KinetixAnalytics.Page.EmoteWheel, KinetixAnalytics.Event_type event_type=KinetixAnalytics.Event_type.Click, int tile_in_wheel=-1, int page_in_wheel=-1)
+        public void SendEvent(string event_name="default", string idAnimation ="", KinetixAnalytics.Page page=KinetixAnalytics.Page.EmoteWheel, KinetixAnalytics.Event_type event_type=KinetixAnalytics.Event_type.Click, int tile_in_wheel=-1)
         {
             Init();
-            analyticsManagerMB.StartCoroutine(SendWebRequestEvent(SegmentURL, event_name, idAnimation, page, event_type, tile_in_wheel, page_in_wheel ));
+            analyticsManagerMB.StartCoroutine(SendWebRequestEvent(SegmentURL, event_name, idAnimation, page, event_type, tile_in_wheel ));
         }
 
-        private IEnumerator SendWebRequestEvent(string uri, string event_name, string idAnimation, KinetixAnalytics.Page page, KinetixAnalytics.Event_type event_type, int tile_in_wheel, int page_in_wheel)
+        private IEnumerator SendWebRequestEvent(string uri, string event_name, string idAnimation, KinetixAnalytics.Page page, KinetixAnalytics.Event_type event_type, int tile_in_wheel)
         {
             Dictionary<string, object> jsonData = new Dictionary<string, object>();
 
             jsonData.Add("userId", AnalyticsSessionInfo.userId.ToString() );
             jsonData.Add("event", GetTrackingName(event_name, page, event_type) );
-            jsonData.Add("properties", GetEventProperties( idAnimation, tile_in_wheel, page_in_wheel ));
+            jsonData.Add("properties", GetEventProperties( idAnimation, tile_in_wheel ));
             jsonData.Add("context", GetContext() );
+
+            Debug.Log("SendEvent : " +GetTrackingName(event_name, page, event_type)); 
 
             using (UnityWebRequest uwr = new UnityWebRequest(uri, "POST"))
             {
@@ -63,7 +65,7 @@ namespace Kinetix.Internal
             }
         }
 
-        Dictionary<string, object> GetEventProperties( string idAnimation, int tile_in_wheel, int page_in_wheel  )
+        Dictionary<string, object> GetEventProperties( string idAnimation, int tile_in_wheel  )
         {
             Dictionary<string, object> properties = new Dictionary<string, object>();
 
@@ -71,8 +73,8 @@ namespace Kinetix.Internal
                 properties.Add("idAnimation", idAnimation);
             if( tile_in_wheel != -1 ) 
                 properties.Add("tile", tile_in_wheel);
-            if( page_in_wheel != -1 ) 
-                properties.Add("page", page_in_wheel);
+
+            properties.Add("appName", Application.productName);
 
             return properties;
         }
