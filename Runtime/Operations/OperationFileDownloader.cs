@@ -1,6 +1,4 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Kinetix.Utils;
 using UnityEngine;
@@ -9,14 +7,16 @@ namespace Kinetix.Internal
 {
     public class OperationFileDownloader : OperationAsync<string>
     {
-        public KinetixEmote kinetixEmote;
-        private          string       path;
-        
-        public OperationFileDownloader(KinetixEmote _KinetixEmote)
+        public  KinetixEmote    kinetixEmote;
+        private string          path;
+        public  SequencerCancel CancelToken;
+
+        public OperationFileDownloader(KinetixEmote _KinetixEmote, SequencerCancel _CancelToken)
         {
             kinetixEmote = _KinetixEmote;
+            CancelToken  = _CancelToken;
         }
-        
+
         public override async Task<string> Execute()
         {
             if (ProgressStatus == EProgressStatus.NONE)
@@ -30,18 +30,18 @@ namespace Kinetix.Internal
 
                 try
                 {
-                    Task<string> task = KinetixDownloader.DownloadAndCacheGLB(kinetixEmote.Ids.UUID, kinetixEmote.Metadata.AnimationURL);
+                    Task<string> task = KinetixDownloader.DownloadAndCacheGLB(kinetixEmote.Ids.UUID, kinetixEmote.Metadata.AnimationURL, CancelToken);
                     ProgressStatus = EProgressStatus.PENDING;
                     Task           = task;
 
-                    path           = await task;
+                    path = await task;
                     ProgressStatus = EProgressStatus.COMPLETED;
                     return path;
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    ProgressStatus = EProgressStatus.COMPLETED;
-                    return null;
+                    ProgressStatus = EProgressStatus.NONE;
+                    throw e;
                 }
             }
 
@@ -50,9 +50,8 @@ namespace Kinetix.Internal
                 path = await Task;
                 return path;
             }
-            
+
             return path;
         }
     }
 }
-

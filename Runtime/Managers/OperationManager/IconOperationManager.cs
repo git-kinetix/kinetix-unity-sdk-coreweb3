@@ -1,9 +1,7 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Threading;
 using Kinetix.Utils;
 using UnityEngine;
 
@@ -14,13 +12,13 @@ namespace Kinetix.Internal
         private static Queue<(OperationIconDownloader, TaskCompletionSource<Texture2D>)> queue;
         private static bool                                                              isProcessing;
 
-        public static async Task<Texture2D> DownloadTexture(string _URL, TokenCancel cancelToken = null)
+        public static async Task<Texture2D> DownloadTexture(KinetixEmote _KinetixEmote, TokenCancel cancelToken = null)
         {
             queue ??= new Queue<(OperationIconDownloader, TaskCompletionSource<Texture2D>)>();
             Texture2D toReturn = null;
 
             TaskCompletionSource<Texture2D> tcs            = new TaskCompletionSource<Texture2D>();
-            OperationIconDownloader         iconDownloader = new OperationIconDownloader(_URL, cancelToken);
+            OperationIconDownloader         iconDownloader = new OperationIconDownloader(_KinetixEmote, cancelToken);
             cancelToken?.Register(tcs);
             queue.Enqueue((iconDownloader, tcs));
 
@@ -61,10 +59,10 @@ namespace Kinetix.Internal
             {
                 textureIcon = await operation.Execute();
 
-                List<(OperationIconDownloader, TaskCompletionSource<Texture2D>)> similarOperations = queue.ToList().FindAll(op => op.Item1.url == operation.url);
+                List<(OperationIconDownloader, TaskCompletionSource<Texture2D>)> similarOperations = queue.ToList().FindAll(op => op.Item1.kinetixEmote.Metadata.Ids.Equals(operation.kinetixEmote.Metadata.Ids));
                 List<(OperationIconDownloader, TaskCompletionSource<Texture2D>)> updatedQueue      = queue.ToList();
 
-                updatedQueue.RemoveAll(op => op.Item1.url == operation.url);
+                updatedQueue.RemoveAll(op => op.Item1.kinetixEmote.Metadata.Ids.Equals(operation.kinetixEmote.Metadata.Ids));
                 queue = new Queue<(OperationIconDownloader, TaskCompletionSource<Texture2D>)>(updatedQueue);
 
                 while (similarOperations.Count > 0)
@@ -87,6 +85,7 @@ namespace Kinetix.Internal
             catch (Exception e)
             {
                 isProcessing = false;
+                UnityEngine.Object.DestroyImmediate(textureIcon);
                 tcs.TrySetException(e);
                 await TaskUtils.Delay(0.0f);
                 DequeueOperations();

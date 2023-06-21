@@ -8,10 +8,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using System.Threading;
 using Kinetix.Internal;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.Networking;
 using Random = UnityEngine.Random;
 
@@ -232,7 +230,7 @@ namespace Kinetix.Utils
             return await GetAsyncRaw(endPoint, null, query);
         }
 
-        public void GetFile(string _URL, string _FilePath, Action _OnSuccess, Action _OnFailure)
+        public void GetFile(string _URL, string _FilePath, SequencerCancel _CancelToken, Action _OnSuccess, Action _OnFailure)
         {
             if (string.IsNullOrWhiteSpace(_URL))
             {
@@ -241,10 +239,10 @@ namespace Kinetix.Utils
                 return;
             }
 
-            StartCoroutine(GetFileAsync(_URL, _FilePath, _OnSuccess, _OnFailure));
+            StartCoroutine(GetFileAsync(_URL, _FilePath, _CancelToken, _OnSuccess, _OnFailure));
         }
 
-        private IEnumerator GetFileAsync(string _URL, string _FilePath, Action _OnSuccess, Action _OnFailure)
+        private IEnumerator GetFileAsync(string _URL, string _FilePath, SequencerCancel _CancelToken, Action _OnSuccess, Action _OnFailure)
         {
             _URL = FixURL(_URL);
             Uri uri = new Uri(_URL);
@@ -255,13 +253,24 @@ namespace Kinetix.Utils
                 downloadHandlerFile.removeFileOnAbort = true;
                 www.downloadHandler                   = downloadHandlerFile;
 
-                yield return www.SendWebRequest();
+                www.SendWebRequest();
+
+                while (!www.isDone)
+                {
+                    if (_CancelToken != null && _CancelToken.canceled)
+                    {
+                        www.Abort();
+                        www.Dispose();
+                        _OnFailure?.Invoke();
+                        yield break;
+                    }
+                    yield return null;
+                }
 
                 if (www.result == UnityWebRequest.Result.ConnectionError ||
                     www.result == UnityWebRequest.Result.ProtocolError)
                 {
                     _OnFailure?.Invoke();
-                    KinetixDebug.LogError("Downloading : " + _URL + " => " + www.error);
                 }
                 else
                 {
@@ -273,10 +282,7 @@ namespace Kinetix.Utils
         public void GetTexture(string _URL, Action<Texture2D> _OnSuccess, Action<Exception> _OnFailure, TokenCancel cancelToken = null)
         {
             if (string.IsNullOrWhiteSpace(_URL))
-            {
-                KinetixDebug.LogException(new ArgumentException($"'{nameof(_URL)}' can't be null, empty or whitespace.", nameof(_URL)));
-                return;
-            }
+                _OnFailure.Invoke(new ArgumentException($"'{nameof(_URL)}' can't be null, empty or whitespace.", nameof(_URL)));
 
             StartCoroutine(GetTextureAsync(_URL, _OnSuccess, _OnFailure, cancelToken));
         }
@@ -305,7 +311,6 @@ namespace Kinetix.Utils
                     www.result == UnityWebRequest.Result.ProtocolError)
                 {
                     _OnFailure?.Invoke(new Exception("Web Request failed to download icon"));
-                    KinetixDebug.LogError("Downloading Sprite : " + _URL + " => " + www.error);
                 }
                 else
                 {
@@ -348,9 +353,9 @@ namespace Kinetix.Utils
                         return task.Result;
                     }
                 }
-                catch (System.Exception e)
+                catch (Exception e)
                 {
-                    Debug.LogError($"Error during request {i}: {e.Message}");
+                    KinetixDebug.LogError($"Error during request {i}: {e.Message}");
                 }
                 
                 // Wait for timeout more and more

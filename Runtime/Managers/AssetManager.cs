@@ -11,78 +11,87 @@ namespace Kinetix.Internal
 {
     public static class AssetManager
     {
-        private static Dictionary<string, Sprite>  IconSpritesByURL;
-        private static Dictionary<string, Texture2D> IconTexturesByURL;
+        private static Dictionary<AnimationIds, Sprite>    IconSpritesByIds;
+        private static Dictionary<AnimationIds, Texture2D> IconTexturesByIds;
 
         public static void Initialize()
         {
-            IconTexturesByURL                           = new Dictionary<string, Texture2D>();
-            IconSpritesByURL                            = new Dictionary<string, Sprite>();
-            MonoBehaviourHelper.Instance.OnDestroyEvent +=  OnDestroy;
+            IconTexturesByIds                           =  new Dictionary<AnimationIds, Texture2D>();
+            IconSpritesByIds                            =  new Dictionary<AnimationIds, Sprite>();
+            MonoBehaviourHelper.Instance.OnDestroyEvent += OnDestroy;
         }
         
-        public static async Task<Sprite> LoadIcon(string _URL, TokenCancel cancelToken = null)
+        public static async Task<Sprite> LoadIcon(AnimationIds _Ids, TokenCancel cancelToken = null)
         {
-            if (IconTexturesByURL == null)
+            if (IconTexturesByIds == null)
                 Initialize();
 
-            if(string.IsNullOrEmpty(_URL))
+            KinetixEmote emote = EmotesManager.GetEmote(_Ids);
+            if (!emote.HasMetadata())
+                return null;
+            if (string.IsNullOrEmpty(emote.Metadata.IconeURL))
                 return null;
 
-            if (IconSpritesByURL.ContainsKey(_URL))
-                return IconSpritesByURL[_URL];
+            if (IconSpritesByIds.ContainsKey(_Ids))
+                return IconSpritesByIds[_Ids];
 
             Sprite    sprite = null;
             Texture2D tex2D  = null;
             
             try
             {
-                tex2D  = await IconOperationManager.DownloadTexture(_URL, cancelToken);
+                tex2D  = await IconOperationManager.DownloadTexture(emote, cancelToken);
                 sprite = Sprite.Create(tex2D, new Rect(0, 0, tex2D.width, tex2D.height), new Vector2(0, 0), 100f, 0, SpriteMeshType.FullRect);
+                sprite.name = "Icon_" + emote.Metadata.Name;
             }
             catch (TaskCanceledException e)
             {
                 throw e;
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                // Let texture and sprite to null if an exception is thrown
+                if (IconTexturesByIds != null && !IconTexturesByIds.ContainsKey(_Ids))
+                    IconTexturesByIds.Add(_Ids, null);
+            
+                if (IconSpritesByIds != null && !IconSpritesByIds.ContainsKey(_Ids))
+                    IconSpritesByIds.Add(_Ids, null);
+                throw e;
             }
             
-            if (IconTexturesByURL != null && !IconTexturesByURL.ContainsKey(_URL))
-                IconTexturesByURL.Add(_URL, tex2D);
+            if (IconTexturesByIds != null && !IconTexturesByIds.ContainsKey(_Ids))
+                IconTexturesByIds.Add(_Ids, tex2D);
             
-            if (IconSpritesByURL != null && !IconSpritesByURL.ContainsKey(_URL))
-                IconSpritesByURL.Add(_URL, sprite);
+            if (IconSpritesByIds != null && !IconSpritesByIds.ContainsKey(_Ids))
+                IconSpritesByIds.Add(_Ids, sprite);
 
             return sprite;
         }
 
-        public static void UnloadIcon(string _URL)
+        public static void UnloadIcon(AnimationIds _Ids)
         {
-            if (IconTexturesByURL.ContainsKey(_URL))
+            if (IconTexturesByIds.ContainsKey(_Ids))
             {
-                Texture2D tex = IconTexturesByURL[_URL];
+                Texture2D tex = IconTexturesByIds[_Ids];
                 Object.DestroyImmediate(tex);
-                IconTexturesByURL.Remove(_URL);
+                IconTexturesByIds.Remove(_Ids);
             }
             
-            if (IconSpritesByURL.ContainsKey(_URL))
+            if (IconSpritesByIds.ContainsKey(_Ids))
             {
-                Sprite sprite = IconSpritesByURL[_URL];
+                Sprite sprite = IconSpritesByIds[_Ids];
                 Object.Destroy(sprite);
-                IconSpritesByURL.Remove(_URL);
+                IconSpritesByIds.Remove(_Ids);
             }
         }
 
         private static void OnDestroy()
         {
-            foreach (Sprite sprite in IconSpritesByURL.Values)
+            foreach (Sprite sprite in IconSpritesByIds.Values)
             {
                 Object.DestroyImmediate(sprite);
             }
             
-            foreach (Texture2D tex2D in IconTexturesByURL.Values)
+            foreach (Texture2D tex2D in IconTexturesByIds.Values)
             {
                 Object.DestroyImmediate(tex2D);
             }

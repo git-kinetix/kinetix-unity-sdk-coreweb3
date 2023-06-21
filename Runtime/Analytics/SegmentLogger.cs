@@ -40,9 +40,7 @@ namespace Kinetix.Internal
             jsonData.Add("event", GetTrackingName(event_name, page, event_type) );
             jsonData.Add("properties", GetEventProperties( idAnimation, tile_in_wheel ));
             jsonData.Add("context", GetContext() );
-
-            Debug.Log("SendEvent : " +GetTrackingName(event_name, page, event_type)); 
-
+            
             using (UnityWebRequest uwr = new UnityWebRequest(uri, "POST"))
             {
                 byte[] jsonToSend = new System.Text.UTF8Encoding().GetBytes(JsonConvert.SerializeObject(jsonData));

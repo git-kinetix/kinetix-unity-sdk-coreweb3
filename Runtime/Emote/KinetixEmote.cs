@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Kinetix.Internal.Cache;
 using Kinetix.Internal.Retargeting;
 using UnityEngine;
 
@@ -11,37 +11,27 @@ namespace Kinetix.Internal
     public class KinetixEmote
     {
         public AnimationIds      Ids      { get; }
-        public bool IsLocal { get { return isLocal; } }
         public AnimationMetadata Metadata { get; private set; }
-        public List<string> Locks { get { return locks; } }
 
-        private string                  pathGLB;
+        private string pathGLB;
 
         private readonly Dictionary<KinetixAvatar, EmoteRetargetedData> retargetedEmoteByAvatar;
-        private readonly Dictionary<KinetixAvatar, List<string>>        lockedMemoryAvatar;
         private readonly Dictionary<KinetixAvatar, List<Action>>        OnEmoteRetargetedByAvatar;
-        private List<string> locks;
-
-        // We store a list of avatar if emote should be deleted but playing right now and delete after unlock
-        private readonly List<KinetixAvatar> avatarsToDeleteAfterUnlock;
-
-        private bool isLocal;
+        private          List<string>                                   locks;
 
         public KinetixEmote(AnimationIds _Ids)
         {
-            Ids                        = _Ids;
-            retargetedEmoteByAvatar    = new Dictionary<KinetixAvatar, EmoteRetargetedData>();
-            OnEmoteRetargetedByAvatar  = new Dictionary<KinetixAvatar, List<Action>>();
-            lockedMemoryAvatar         = new Dictionary<KinetixAvatar, List<string>>();
-            avatarsToDeleteAfterUnlock = new List<KinetixAvatar>();
-            locks = new List<string>();
+            Ids                       = _Ids;
+            retargetedEmoteByAvatar   = new Dictionary<KinetixAvatar, EmoteRetargetedData>();
+            OnEmoteRetargetedByAvatar = new Dictionary<KinetixAvatar, List<Action>>();
+            locks                     = new List<string>();
         }
 
         public void Lock(string lockId)
         {
             if (string.IsNullOrEmpty(lockId))
                 return;
-            
+
             if (locks.Contains(lockId))
                 return;
 
@@ -54,7 +44,8 @@ namespace Kinetix.Internal
         {
             if (!locks.Contains(lockId))
             {
-                KinetixDebug.LogWarning("Tried to unlock emote " + Ids + " but it wasn't locked anymore and should have been disposed already.");
+                KinetixDebug.LogWarning("Tried to unlock emote " + Ids +
+                                        " but it wasn't locked anymore and should have been disposed already.");
                 return;
             }
 
@@ -69,13 +60,12 @@ namespace Kinetix.Internal
         public void ForceUnload(KinetixAvatar avatar)
         {
             KinetixDebug.Log("[FORCE UNLOAD] Animation : " + Ids);
-
             Unload(avatar);
         }
 
-        private void Unload(KinetixAvatar avatar)
+        private void Unload(KinetixAvatar _Avatar)
         {
-            EmotesManager.ClearEmote(avatar, Ids);
+            ClearAvatar(_Avatar);
         }
 
         /// <summary>
@@ -97,38 +87,13 @@ namespace Kinetix.Internal
         }
 
         /// <summary>
-        /// Set the medata for this emote
-        /// </summary>
-        /// <param name="_AnimationMetadata">Metadata of the emote</param>
-        public void SetLocalMetadata(AnimationMetadata _AnimationMetadata, string localGLBPath)
-        {
-            Metadata = _AnimationMetadata;
-            isLocal = true;
-            pathGLB = localGLBPath;
-        }
-
-        /// <summary>
-        /// Set only IDs and URL in the medata
-        /// Mainly used for network purposes with only animation need.
-        /// </summary>
-        /// <param name="_Ids"></param>
-        /// <param name="_AnimationURL"></param>
-        public void SetShortMetadata(AnimationIds _Ids, string _AnimationURL)
-        {
-            Metadata = new AnimationMetadata()
-            {
-                Ids          = _Ids,
-                AnimationURL = _AnimationURL
-            };
-        }
-
-        /// <summary>
         /// Check if GLB file is used (e.g. Import Retargeting)
         /// </summary>
         /// <returns>True if use</returns>
         public bool IsFileInUse()
         {
-            return retargetedEmoteByAvatar.Values.Any(retargetedData => retargetedData.ProgressStatus != EProgressStatus.COMPLETED);
+            return retargetedEmoteByAvatar.Values.Any(retargetedData =>
+                retargetedData.ProgressStatus != EProgressStatus.COMPLETED);
         }
 
         public bool HasAnimationRetargeted(KinetixAvatar _Avatar)
@@ -144,31 +109,32 @@ namespace Kinetix.Internal
         /// <returns>True if path exists</returns>
         private bool HasValidPath()
         {
-            return !string.IsNullOrEmpty(pathGLB);
-        }
-
-        /// <summary>
-        /// Check if emote is retargeting for a specific avatar
-        /// </summary>
-        /// <param name="_KinetixAvatar"></param>
-        /// <returns></returns>
-        private bool IsRetargeting(KinetixAvatar _KinetixAvatar)
-        {
-            if (!retargetedEmoteByAvatar.ContainsKey(_KinetixAvatar))
+            if (string.IsNullOrEmpty(pathGLB))
                 return false;
-            return retargetedEmoteByAvatar[_KinetixAvatar].ProgressStatus != EProgressStatus.COMPLETED;
+            return File.Exists(pathGLB);
         }
 
         #region Async Requests
 
-        private async Task<string> GetFilePath()
+        private async Task<string> GetFilePath(SequencerCancel cancelToken)
         {
             if (HasValidPath())
                 return pathGLB;
-            
-            pathGLB = await FileOperationManager.DownloadGLBByEmote(this);
-            MemoryManager.AddStorageAllocation(pathGLB);
 
+            try
+            {
+                pathGLB = await FileOperationManager.DownloadGLBByEmote(this, cancelToken);
+            }
+            catch (OperationCanceledException e)
+            {
+                throw e;
+            }
+            catch (Exception e)
+            {
+                throw e;
+            }
+            
+            MemoryManager.AddStorageAllocation(pathGLB);
             return pathGLB;
         }
 
@@ -182,38 +148,17 @@ namespace Kinetix.Internal
         /// It is only use to for the emote played by the local player.
         /// </param>
         /// <returns>The AnimationClip for the specific Avatar</returns>
-        public async Task<AnimationClip> GetRetargetedAnimationClipByAvatar(KinetixAvatar _Avatar, SequencerPriority _Priority, bool _Force)
+        public async Task<AnimationClip> GetRetargetedAnimationClipByAvatar(KinetixAvatar _Avatar,
+            SequencerPriority                                                             _Priority, bool _Force)
         {
-            TaskCompletionSource<AnimationClip> tcs = new TaskCompletionSource<AnimationClip>();
-
             if (!_Force && MemoryManager.HasStorageExceedMemoryLimit())
-            {
-                tcs.SetException(new Exception("Not enough storage space available to retarget : " + Ids.UUID));
-                return await tcs.Task;
-            }
+                throw new Exception("Not enough storage space available to retarget : " + Ids.UUID);
 
             if (!_Force && MemoryManager.HasRAMExceedMemoryLimit())
-            {
-                tcs.SetException(new Exception("Not enough RAM space to retarget : " + Ids.UUID));
-                return await tcs.Task;
-            }
+                throw new Exception("Not enough RAM space to retarget : " + Ids.UUID);
 
             if (!HasMetadata())
-            {
-                try
-                {
-                    KinetixDebug.LogWarning("No metadata found while retargeting AnimationClip");
-                    SetMetadata(await MetadataOperationManager.DownloadMetadataByAnimationIds(Ids));
-                }
-                catch (Exception e)
-                {
-                    KinetixDebug.LogException(e);
-                    return null;
-                }
-            }
-
-            if (avatarsToDeleteAfterUnlock != null && avatarsToDeleteAfterUnlock.Contains(_Avatar))
-                avatarsToDeleteAfterUnlock.Remove(_Avatar);
+                throw new Exception("No metadata found for emote : " + Ids.UUID);
 
             if (!retargetedEmoteByAvatar.ContainsKey(_Avatar))
             {
@@ -223,95 +168,98 @@ namespace Kinetix.Internal
                 });
             }
 
+            TaskCompletionSource<AnimationClip> tcs = new TaskCompletionSource<AnimationClip>();
+
             switch (retargetedEmoteByAvatar[_Avatar].ProgressStatus)
             {
                 case EProgressStatus.COMPLETED:
-                    tcs.SetResult(retargetedEmoteByAvatar[_Avatar].AnimationClipLegacyRetargeted);
-                    break;
+                    return retargetedEmoteByAvatar[_Avatar].AnimationClipLegacyRetargeted;
                 case EProgressStatus.PENDING:
-                    RegisterCallbacksOnRetargetedByAvatar(_Avatar, () => { tcs.SetResult(retargetedEmoteByAvatar[_Avatar].AnimationClipLegacyRetargeted); });
+                    RegisterCallbacksOnRetargetedByAvatar(_Avatar,
+                        () => { tcs.SetResult(retargetedEmoteByAvatar[_Avatar].AnimationClipLegacyRetargeted); });
                     break;
                 case EProgressStatus.NONE:
                 {
                     if (MemoryManager.HasStorageExceedMemoryLimit())
-                    {
-                        tcs.SetException(new Exception("Not enough storage space available to retarget : " + Ids.UUID));
-                        return await tcs.Task;
-                    }
+                        throw new Exception("Not enough storage space available to retarget : " + Ids.UUID);
 
                     if (MemoryManager.HasRAMExceedMemoryLimit())
-                    {
-                        tcs.SetException(new Exception("Not enough RAM space to retarget : " + Ids.UUID));
-                        return await tcs.Task;
-                    }
+                        throw new Exception("Not enough RAM space to retarget : " + Ids.UUID);
+                    
+                    SequencerCancel cancelToken = new SequencerCancel();
+                    retargetedEmoteByAvatar[_Avatar].CancelToken    = cancelToken;
+                    retargetedEmoteByAvatar[_Avatar].ProgressStatus = EProgressStatus.PENDING;
 
+                    string path;
                     try
                     {
-                        SequencerCancel cancelToken = new SequencerCancel();
-                        retargetedEmoteByAvatar[_Avatar].CancelToken    = cancelToken;
-                        retargetedEmoteByAvatar[_Avatar].ProgressStatus = EProgressStatus.PENDING;
-                        
-                        string path = await GetFilePath();
-
-                        if (string.IsNullOrEmpty(path))
-                            tcs.SetException(new Exception("GLB is not available"));
-                        else
-                        {
-                            bool useWebRequest = false;
-                            
-#if (UNITY_WEBGL || UNITY_ANDROID) && !UNITY_EDITOR
-                            useWebRequest = isLocal;
-#endif
-
-                            if (cancelToken.canceled)
-                            {
-                                tcs.SetException(new Exception($"Retargeting for emote {Ids.UUID} was cancelled"));
-                                return null;
-                            }
-                            
-                            RetargetingManager.GetRetargetedAnimationClip<AnimationClip, AnimationClipExport>(_Avatar.Avatar, _Avatar.Root, path, _Priority, cancelToken, (clip, estimationSize) =>
-                            {
-                                
-                                if (!_Force && !retargetedEmoteByAvatar.ContainsKey(_Avatar))
-                                {
-                                    // We delete clip as we dont need it anymore
-                                    MemoryManager.DeleteFileInRaM(clip);
-                                    CheckAvatarsLeft();
-                                    tcs.SetException(new Exception("AnimationClip is not required anymore after retargeting"));
-                                }
-                                else
-                                {
-                                    retargetedEmoteByAvatar[_Avatar].ProgressStatus = EProgressStatus.COMPLETED;
-
-                                    KinetixDebug.Log("Retargeted : " + pathGLB);
-
-                                    MemoryManager.CheckStorage();
-                                    MemoryManager.CheckRAM(Ids.UUID, _Avatar);
-                                    
-                                    if (MemoryManager.HasRAMExceedMemoryLimit())
-                                    {
-                                        ClearAvatar(_Avatar);
-                                        tcs.SetException(new Exception("Not enough RAM space to retarget : " + Ids.UUID));
-                                        return;
-                                    }
-
-                                    retargetedEmoteByAvatar[_Avatar].AnimationClipLegacyRetargeted = clip;
-                                    retargetedEmoteByAvatar[_Avatar].SizeInBytes                   = estimationSize;
-                                    retargetedEmoteByAvatar[_Avatar].CancelToken                   = null;
-                                    MemoryManager.AddRamAllocation(estimationSize);
-                                    NotifyCallbackOnRetargetedByAvatar(_Avatar);
-
-                                    tcs.SetResult(clip);
-                                }
-                            }, useWebRequest: useWebRequest);
-                            
-                        }
+                        path = await GetFilePath(cancelToken);
+                    }
+                    catch (OperationCanceledException e)
+                    {
+                        throw e;
                     }
                     catch (Exception e)
                     {
-                        tcs.SetException(e);
-                        return null;
+                        pathGLB = string.Empty;
+                        if (retargetedEmoteByAvatar.ContainsKey(_Avatar))
+                            retargetedEmoteByAvatar[_Avatar].ProgressStatus = EProgressStatus.NONE;
+                        throw e;
                     }
+                    
+                    if (string.IsNullOrEmpty(path))
+                    {
+                        retargetedEmoteByAvatar[_Avatar].ProgressStatus = EProgressStatus.NONE;
+                        throw new Exception("GLB is not available");
+                    }
+
+                    bool useWebRequest = false;
+                    
+                    if (cancelToken.canceled)
+                    {
+                        retargetedEmoteByAvatar[_Avatar].ProgressStatus = EProgressStatus.NONE;
+                        throw new Exception($"Retargeting for emote {Ids.UUID} was cancelled");
+                    }
+
+                    RetargetingManager.GetRetargetedAnimationClip<AnimationClip, AnimationClipExport>(
+                        _Avatar.Avatar, _Avatar.Root, path, _Priority, cancelToken, (clip, estimationSize) =>
+                        {
+                            if (!retargetedEmoteByAvatar.ContainsKey(_Avatar))
+                            {
+                                // We delete clip as we dont need it anymore
+                                retargetedEmoteByAvatar[_Avatar].ProgressStatus = EProgressStatus.NONE;
+                                MemoryManager.DeleteFileInRaM(clip);
+                                tcs.SetException(
+                                    new Exception("AnimationClip is not required anymore after retargeting"));
+                            }
+                            else
+                            {
+                                retargetedEmoteByAvatar[_Avatar].ProgressStatus = EProgressStatus.COMPLETED;
+
+                                KinetixDebug.Log("Retargeted : " + pathGLB);
+
+                                MemoryManager.CheckStorage();
+                                MemoryManager.CheckRAM(Ids.UUID, _Avatar);
+
+                                if (MemoryManager.HasRAMExceedMemoryLimit())
+                                {
+                                    ClearAvatar(_Avatar);
+                                    tcs.SetException(
+                                        new Exception("Not enough RAM space to retarget : " + Ids.UUID));
+                                    return;
+                                }
+
+                                retargetedEmoteByAvatar[_Avatar].AnimationClipLegacyRetargeted = clip;
+                                retargetedEmoteByAvatar[_Avatar].SizeInBytes                   = estimationSize;
+                                retargetedEmoteByAvatar[_Avatar].CancelToken                   = null;
+
+                                MemoryManager.AddRamAllocation(estimationSize);
+                                NotifyCallbackOnRetargetedByAvatar(_Avatar);
+
+                                tcs.SetResult(clip);
+                            }
+                        }, useWebRequest: useWebRequest);
+
 
                     break;
                 }
@@ -362,16 +310,23 @@ namespace Kinetix.Internal
 
         public void ClearAvatar(KinetixAvatar _Avatar)
         {
+            if (_Avatar == null)
+                return;
+            
             if (!retargetedEmoteByAvatar.ContainsKey(_Avatar))
                 return;
 
             if (OnEmoteRetargetedByAvatar.ContainsKey(_Avatar))
                 OnEmoteRetargetedByAvatar.Remove(_Avatar);
-            
+
             if (retargetedEmoteByAvatar[_Avatar].ProgressStatus != EProgressStatus.COMPLETED)
             {
-                if (retargetedEmoteByAvatar[_Avatar].CancelToken != null)
+                if (retargetedEmoteByAvatar[_Avatar].CancelToken != null &&
+                    !retargetedEmoteByAvatar[_Avatar].CancelToken.canceled)
+                {
+                    retargetedEmoteByAvatar[_Avatar].ProgressStatus = EProgressStatus.NONE;
                     retargetedEmoteByAvatar[_Avatar].CancelToken.Cancel();
+                }
             }
             else
             {
@@ -379,21 +334,10 @@ namespace Kinetix.Internal
                 MemoryManager.RemoveRamAllocation(retargetedData.SizeInBytes);
                 MemoryManager.DeleteFileInRaM(retargetedData.AnimationClipLegacyRetargeted);
             }
-            
+
             retargetedEmoteByAvatar.Remove(_Avatar);
-
-            CheckAvatarsLeft();
-        }
-
-        private void CheckAvatarsLeft()
-        {
-            if (retargetedEmoteByAvatar.Count > 0)
-                return;
-            
-            if (isLocal) return;
-            
+            pathGLB = null;
             MemoryManager.DeleteFileInStorage(Ids.UUID);
-            RemoveDownloadFile();
         }
 
         public void ClearAllAvatars(KinetixAvatar[] _AvoidAvatars = null)
@@ -404,19 +348,13 @@ namespace Kinetix.Internal
                 avoidAvatars = _AvoidAvatars.ToList();
             }
 
-            Dictionary<KinetixAvatar, EmoteRetargetedData> retargetedEmoteByAvatarCopy = new Dictionary<KinetixAvatar, EmoteRetargetedData>(retargetedEmoteByAvatar);
+            Dictionary<KinetixAvatar, EmoteRetargetedData> retargetedEmoteByAvatarCopy =
+                new Dictionary<KinetixAvatar, EmoteRetargetedData>(retargetedEmoteByAvatar);
             foreach (KeyValuePair<KinetixAvatar, EmoteRetargetedData> kvp in retargetedEmoteByAvatarCopy)
             {
                 if (!avoidAvatars.Exists(avatar => avatar.Equals(kvp.Key)))
                     ClearAvatar(kvp.Key);
             }
-        }
-
-        public void RemoveDownloadFile()
-        {
-            if (isLocal) return;
-            
-            pathGLB                  = string.Empty;
         }
 
         public void Destroy()

@@ -172,9 +172,6 @@ namespace Kinetix.Internal
             KinetixEmote[] emotes = EmotesManager.GetAllEmotes();
             for (int i = 0; i < emotes.Length; i++)
             {
-                if (emotes[i].IsLocal)
-                    continue;
-                    
                 if (!HasStorageExceedMemoryLimit())
                     return;
 
@@ -184,7 +181,6 @@ namespace Kinetix.Internal
                 if (!LocalPlayerManager.IsEmoteUsedByPlayer(emotes[i].Ids))
                 {
                     DeleteFileInStorage(emotes[i].Ids.UUID);
-                    emotes[i].RemoveDownloadFile();
                 }
             }
         }
@@ -194,9 +190,6 @@ namespace Kinetix.Internal
             KinetixEmote[] emotes = EmotesManager.GetAllEmotes();
             for (int i = 0; i < emotes.Length; i++)
             {
-                if (emotes[i].IsLocal)
-                    continue;
-
                 if (!HasStorageExceedMemoryLimit())
                     return;
                 
@@ -206,7 +199,6 @@ namespace Kinetix.Internal
                 if (LocalPlayerManager.IsEmoteUsedByPlayer(emotes[i].Ids))
                 {
                     DeleteFileInStorage(emotes[i].Ids.UUID);
-                    emotes[i].RemoveDownloadFile();
                 }
             }
         }

@@ -118,7 +118,6 @@ namespace Kinetix.Internal.Cache
                         _OnSuccess?.Invoke();
                 }, () =>
                 {
-                    KinetixDebug.LogError("Failed Loading Animations : " + kinetixEmote.Ids.UUID);
                     _OnFailure?.Invoke();
                 });
             }
@@ -310,7 +309,7 @@ namespace Kinetix.Internal.Cache
         {
             if (LocalKinetixCharacterComponent == null)
             {
-                Debug.LogWarning("[KINETIX] Local player was not registered");
+                KinetixDebug.LogWarning("Local player was not registered");
                 return;
             }
 
@@ -324,7 +323,7 @@ namespace Kinetix.Internal.Cache
         {
             if (LocalKinetixCharacterComponent == null)
             {
-                Debug.LogWarning("[KINETIX] Local player was not registered");
+                KinetixDebug.LogWarning("Local player was not registered");
                 return;
             }
 

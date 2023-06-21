@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Kinetix.Internal.Cache;
 using Kinetix.Utils;
 using UnityEngine;
 
@@ -132,9 +131,14 @@ namespace Kinetix.Internal
                             _OnFailure?.Invoke();
                         }
                     }
+                    catch (OperationCanceledException)
+                    {
+                        KinetixDebug.Log("Loading animation operation was cancelled for emote : " + _KinetixEmote.Ids.UUID);
+                        _OnFailure?.Invoke();
+                    }
                     catch (Exception e)
                     {
-                        KinetixDebug.LogException(e);
+                        KinetixDebug.LogWarning($"Failed loading animation with id { _KinetixEmote.Ids.UUID } with error : " + e.Message);
                         _OnFailure?.Invoke();
                     }
 
@@ -152,12 +156,14 @@ namespace Kinetix.Internal
                 AnimationClip animationClip = await _KinetixEmote.GetRetargetedAnimationClipByAvatar(_KinetixAvatar, _Priority, _Force);
                 return animationClip;
             }
+            catch (OperationCanceledException e)
+            {
+                throw e;
+            }
             catch (Exception e)
             {
-                KinetixDebug.LogWarningException(e);
+                throw e;
             }
-
-            return null;
         }
 
         #endregion
@@ -179,47 +185,10 @@ namespace Kinetix.Internal
                 KinetixDebug.Log("Can't register animation to notify on ready" + e.Message);
             }
         }
-
-        public static void ClearAvatar(KinetixAvatar _KinetixAvatar)
-        {
-            try
-            {
-                if (_KinetixAvatar == null)
-                    return;
-
-                if (GetTotalKinetixAvatarByType(_KinetixAvatar) > 0)
-                    return;
-
-                foreach (KinetixEmote kinetixEmotesValue in kinetixEmotes.Values)
-                {
-                    kinetixEmotesValue.ClearAvatar(_KinetixAvatar);
-                }
-
-                KinetixDebug.Log("[CLEAR] Avatar : " + _KinetixAvatar.GetHashCode());
-                MemoryManager.CheckStorage();
-            }
-            catch (Exception e)
-            {
-                KinetixDebug.Log("Can't clear avatar : " + e.Message);
-            }
-        }
-
-
+        
         public static void ForceClearEmote(KinetixEmote _kinetixEmote, KinetixAvatar[] _AvoidAvatars = null)
         {
             _kinetixEmote.ClearAllAvatars(_AvoidAvatars);
-        }
-
-        public static void ClearEmote(KinetixAvatar _KinetixAvatar, AnimationIds _Ids)
-        {
-            KinetixEmote emote = GetEmote(_Ids);
-            
-            if (_KinetixAvatar == null)
-                return;
-
-            KinetixDebug.Log("[CLEAR] Animation : " + emote.Ids);
-                    
-            GetEmote(emote.Ids).ClearAvatar(_KinetixAvatar);
         }
 
         public static void LockEmote(AnimationIds _Ids, string _LockId)
@@ -241,27 +210,6 @@ namespace Kinetix.Internal
             KinetixEmote emote = GetEmote(_Ids);
             
             emote.ForceUnload(_Avatar);
-        }
-
-        private static int GetTotalKinetixAvatarByType(KinetixAvatar _KinetixAvatar)
-        {
-            try
-            {
-                if (_KinetixAvatar == null)
-                    return 0;
-
-                int count = 0;
-
-                if (LocalPlayerManager.KAvatar != null && LocalPlayerManager.KAvatar.Equals(_KinetixAvatar))
-                    count++;
-                    
-                return count;
-            }
-            catch (Exception e)
-            {
-                KinetixDebug.Log("Failed getting Total Kinetix By Type : " + e.Message);
-                return 0;
-            }
         }
 
         private static void OnDestroy()
