@@ -13,8 +13,8 @@ namespace Kinetix.Utils
         { 
             _isCanceled = true;
             internalOnCancel?.Invoke();
-            Dispose();
         }
+        
         public void Dispose() => internalOnCancel = null;
         public void Register<T>(TaskCompletionSource<T> tcs) { internalOnCancel += tcs.TrySetCanceled; }
     }    

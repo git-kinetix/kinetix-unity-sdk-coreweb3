@@ -9,38 +9,44 @@ namespace Kinetix.Internal
 {
     public class OperationIconDownloader : OperationAsync<Texture2D>
     {
-        public readonly string    url;
-        private         Texture2D texture2D;
-        private TokenCancel cancelToken;
+        public readonly KinetixEmote kinetixEmote;
+        private         Texture2D    texture2D;
+        public          TokenCancel  CancelToken;
 
-        public OperationIconDownloader(string _URL, TokenCancel cancelToken = null)
+        public OperationIconDownloader(KinetixEmote _KinetixEmote, TokenCancel cancelToken = null)
         {
-            url = _URL;
-            this.cancelToken = cancelToken;
+            kinetixEmote = _KinetixEmote;
+            CancelToken  = cancelToken;
         }
 
         public override async Task<Texture2D> Execute()
         {
             if (ProgressStatus == EProgressStatus.NONE)
             {
-                if (string.IsNullOrEmpty(url))
+                if (kinetixEmote == null)
                     return null;
 
-                Task<Texture2D> task = DownloadIconTexture(url);
+                if (!kinetixEmote.HasMetadata())
+                    return null;
 
-                ProgressStatus = EProgressStatus.PENDING;
-                Task           = task;
-
+                string url = kinetixEmote.Metadata.IconeURL;
+                if (string.IsNullOrEmpty(url))
+                    return null;
+                
                 try
                 {
+                    Task<Texture2D> task = DownloadIconTexture(url);
+                    ProgressStatus = EProgressStatus.PENDING;
+                    Task           = task;
                     texture2D      = await task;
-                    texture2D      = await DownsampleTexture(texture2D, 5);
-                    texture2D.name = url;
-                    texture2D.Apply();
+
+                    texture2D      = await ProcessDownsampling(texture2D);
+                    ProgressStatus = EProgressStatus.COMPLETED;
+                    return texture2D;
                 }
-                catch (TaskCanceledException e)
+                catch (OperationCanceledException e)
                 {
-                    Object.DestroyImmediate(texture2D);
+                    ProgressStatus = EProgressStatus.NONE;
                     throw e;
                 }
                 catch (Exception e)
@@ -48,42 +54,47 @@ namespace Kinetix.Internal
                     ProgressStatus = EProgressStatus.COMPLETED;
                     throw e;
                 }
-
-                ProgressStatus = EProgressStatus.COMPLETED;
-                return texture2D;
             }
 
-            if (ProgressStatus == EProgressStatus.PENDING)
+            if (ProgressStatus != EProgressStatus.COMPLETED)
             {
-                try
-                {
-                    texture2D = await Task;
-                }
-                catch (TaskCanceledException e)
-                {
-                    Object.DestroyImmediate(texture2D);
-                    throw e;
-                }
-
+                texture2D = await Task;
+                texture2D = await ProcessDownsampling(texture2D);
                 return texture2D;
             }
 
             return texture2D;
         }
 
-        private Task<Texture2D> DownloadIconTexture(string _URL)
+        private async Task<Texture2D> DownloadIconTexture(string _URL)
         {
             TaskCompletionSource<Texture2D> tcs = new TaskCompletionSource<Texture2D>();
-            WebRequestHandler.Instance.GetTexture(_URL, (downloadedTexture2D) =>
+            WebRequestHandler.Instance.GetTexture(_URL,
+                (downloadedTexture2D) =>
                 {
+                    
+                    
                     tcs.TrySetResult(downloadedTexture2D);
                 },
                 (e) =>
                 {
+                    if (CancelToken.IsCanceled)
+                    {
+                        tcs.TrySetCanceled();
+                        return;
+                    }
                     tcs.TrySetException(e);
-                }, cancelToken);
+                }, CancelToken);
 
-            return tcs.Task;
+            return await tcs.Task;
+        }
+
+        private async Task<Texture2D> ProcessDownsampling(Texture2D _Texture2D)
+        {
+            _Texture2D      = await DownsampleTexture(_Texture2D, 5);
+            _Texture2D.name = "Texture_" + kinetixEmote.Metadata.Name;
+            _Texture2D.Apply();
+            return _Texture2D;
         }
 
         private static async Task<Texture2D> DownsampleTexture(Texture2D sourceTexture, int ratio)
@@ -125,8 +136,5 @@ namespace Kinetix.Internal
 
             return targetTexture;
         }
-
-
     }
 }
-

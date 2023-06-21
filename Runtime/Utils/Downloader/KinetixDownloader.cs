@@ -5,7 +5,6 @@
 // // ----------------------------------------------------------------------------
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Kinetix.Internal;
@@ -19,7 +18,7 @@ namespace Kinetix.Utils
         /// <summary>
         /// Download GLB and cache it in persistant data directory
         /// </summary>
-        public static async Task<string> DownloadAndCacheGLB(string _UUID, string _AnimationURL)
+        public static async Task<string> DownloadAndCacheGLB(string _UUID, string _AnimationURL, SequencerCancel _CancelToken)
         {
             string filename = _UUID + s_ExtensionFile;
             string filePath = Path.Combine(PathConstants.CacheAnimationsPath, filename);
@@ -34,24 +33,33 @@ namespace Kinetix.Utils
             try
             {
                 KinetixDebug.Log("Start Download : " + _AnimationURL);
-                WebRequestHandler.Instance.GetFile(_AnimationURL, filePath, () =>
+                WebRequestHandler.Instance.GetFile(_AnimationURL, filePath, _CancelToken, () =>
                 {
-                    if (!MemoryManager.FileExists(filePath))
+                    if (_CancelToken.canceled)
                     {
-                        tcs.SetException(new Exception("File does not exists after downloading GLB"));
+                        tcs.TrySetException(new Exception("Download GLB Cancelled"));
+                        return;
                     }
                     
-                    KinetixDebug.Log("Downloaded : " + filePath);
-
-                    KinetixAnalytics.SendEvent("Download_Animation", _UUID, KinetixAnalytics.Page.None, KinetixAnalytics.Event_type.Click);
                     
-                    tcs.SetResult(filePath);
+                    
+                    if (!MemoryManager.FileExists(filePath))
+                    {
+                        tcs.TrySetException(new Exception("File does not exists after downloading GLB"));
+                    }
+                    else
+                    {
+                        KinetixDebug.Log("Downloaded : " + filePath);
+                        KinetixAnalytics.SendEvent("Download_Animation", _UUID, KinetixAnalytics.Page.None, KinetixAnalytics.Event_type.Click);
+                        tcs.TrySetResult(filePath);
+                    }
+
                 }, () => 
-                    tcs.SetException(new Exception("Failed downloading GLB")));
+                    tcs.TrySetException(new Exception("Error while download file")));
             }
             catch (Exception e)
             {
-                tcs.SetException(e);
+                tcs.TrySetException(e);
             }
 
             return await tcs.Task;
