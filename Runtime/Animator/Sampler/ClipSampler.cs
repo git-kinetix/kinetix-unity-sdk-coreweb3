@@ -91,6 +91,7 @@ namespace Kinetix.Internal
             if (m_blendAnimations != null)
                 m_blendAnimations.Dispose();
             EnableAnimator();
+            Destroy(this);
         }
 
 		private void GetAnimator()

@@ -138,8 +138,6 @@ namespace Kinetix.Internal
             if (File.Exists(_Path))
             {
                 currentStorage -= new FileInfo(_Path).Length;
-                if (_Log)
-                    KinetixDebug.Log("Storage Size : " + GetStorageSize().ToString("F1") + "MB");
             }
         }
         
@@ -211,6 +209,9 @@ namespace Kinetix.Internal
             {
                 RemoveStorageAllocation(path, _Log);
                 File.Delete(path);
+                
+                if (_Log)
+                    KinetixDebug.Log("Storage Size : " + (GetStorageSize().ToString("F1") + "MB"));
             }
         }
         

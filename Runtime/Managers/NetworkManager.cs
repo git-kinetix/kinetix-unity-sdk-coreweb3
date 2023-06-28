@@ -13,19 +13,23 @@ namespace Kinetix.Internal
 {
     internal static class NetworkManager
     {
-        public static KinetixNetworkConfiguration Configuration { get { return configuration; } }
+        public static KinetixNetworkConfiguration Configuration
+        {
+            get { return configuration; }
+        }
+
         private static KinetixNetworkConfiguration configuration;
-        
-        private static Dictionary<string, KinetixPeer>           PeerByUUID;
+
+        private static Dictionary<string, KinetixPeer> PeerByUUID;
 
         public static void Initialize()
         {
-            Initialize(KinetixNetworkConfiguration.GetDefault()); 
+            Initialize(KinetixNetworkConfiguration.GetDefault());
         }
 
         public static void Initialize(KinetixNetworkConfiguration Configuration)
         {
-            PeerByUUID                            = new Dictionary<string, KinetixPeer>();
+            PeerByUUID = new Dictionary<string, KinetixPeer>();
 
 
             // Setting configuration
@@ -40,11 +44,15 @@ namespace Kinetix.Internal
 
         public static void RegisterRemotePeerAnimator(string _RemotePeerID, Animator _Animator)
         {
+            if (PeerByUUID.ContainsKey(_RemotePeerID))
+                UnregisterRemotePeer(_RemotePeerID);
+
             KinetixCharacterComponent kcc = _Animator.gameObject.AddComponent<KinetixCharacterComponent>();
             kcc.Init(null);
-            
-            PeerByUUID.Add(_RemotePeerID, new KinetixPeer {
-                KCharacterComponent         = _Animator == null ? null : kcc
+
+            PeerByUUID.Add(_RemotePeerID, new KinetixPeer
+            {
+                KCharacterComponent = _Animator == null ? null : kcc
             });
         }
 
@@ -75,10 +83,10 @@ namespace Kinetix.Internal
             for (int i = 0; i < _RemotePeerIDs.Length; i++)
             {
                 string remotePeerID = _RemotePeerIDs[i];
-                
+
                 if (PeerByUUID.ContainsKey(remotePeerID))
                 {
-                    KinetixPeer   kPeer   = PeerByUUID[remotePeerID];
+                    KinetixPeer kPeer = PeerByUUID[remotePeerID];
                     kPeer.KCharacterComponent.Dispose();
 
                     PeerByUUID.Remove(remotePeerID);
@@ -91,9 +99,8 @@ namespace Kinetix.Internal
             configuration = _Configuration;
         }
 
-        public static KinetixCharacterComponent GetRemoteKCC(string _RemotePeerID) 
+        public static KinetixCharacterComponent GetRemoteKCC(string _RemotePeerID)
         {
-
             if (PeerByUUID.ContainsKey(_RemotePeerID))
             {
                 return PeerByUUID[_RemotePeerID].KCharacterComponent;
