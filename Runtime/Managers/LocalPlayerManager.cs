@@ -44,6 +44,9 @@ namespace Kinetix.Internal.Cache
 
         public static void AddPlayerCharacterComponent(Animator _Animator)
         {
+            if (KAvatar != null)
+                UnregisterPlayerComponent();
+            
             KAvatar            = CreateKinetixAvatar(_Animator.avatar, _Animator.transform, EExportType.AnimationClipLegacy);
             LocalKinetixCharacterComponent = AddKCCAndInit(_Animator, KAvatar);
             OnRegisterLocalPlayer();
@@ -51,6 +54,9 @@ namespace Kinetix.Internal.Cache
 
         public static void AddPlayerCharacterComponent(Animator _Animator, RootMotionConfig _RootMotionConfig)
         {
+            if (KAvatar != null)
+                UnregisterPlayerComponent();
+ 
             KAvatar            = CreateKinetixAvatar(_Animator.avatar, _Animator.transform, EExportType.AnimationClipLegacy);
             LocalKinetixCharacterComponent = AddKCCAndInit(_Animator, KAvatar, _RootMotionConfig);
             OnRegisterLocalPlayer();
@@ -58,6 +64,9 @@ namespace Kinetix.Internal.Cache
 
         public static void AddPlayerCharacterComponent(Avatar _Avatar, Transform _RootTransform, EExportType _ExportType)
         {
+            if (KAvatar != null)
+                UnregisterPlayerComponent();
+            
             KAvatar = CreateKinetixAvatar(_Avatar, _RootTransform, _ExportType);
             OnRegisterLocalPlayer();
         }
@@ -88,6 +97,8 @@ namespace Kinetix.Internal.Cache
             callbackOnRetargetedAnimationIdOnLocalPlayer.Clear();
             downloadedEmotesReadyToPlay.Clear();
             KAvatar                        = null;
+
+            AccountManager.OnUpdatedAccount?.Invoke();
         }
 
         #region LOAD

@@ -92,6 +92,7 @@ namespace Kinetix.Internal
 			if (m_AnimatorClone != null)
 				Destroy(m_AnimatorClone.gameObject);
 			m_Interpolation = false;
+            Destroy(this);
 		}
 		
 		/// <summary>

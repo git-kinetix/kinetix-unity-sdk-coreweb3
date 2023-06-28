@@ -141,9 +141,9 @@ namespace Kinetix
             if (kinetixEmotes == null)
                 return;
             
-            
             if (clipSampler != null)
                 clipSampler.Dispose();
+            Destroy(this);
         }
     }
 }

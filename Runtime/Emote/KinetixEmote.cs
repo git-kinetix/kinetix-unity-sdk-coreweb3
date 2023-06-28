@@ -238,7 +238,6 @@ namespace Kinetix.Internal
 
                                 KinetixDebug.Log("Retargeted : " + pathGLB);
 
-                                MemoryManager.CheckStorage();
                                 MemoryManager.CheckRAM(Ids.UUID, _Avatar);
 
                                 if (MemoryManager.HasRAMExceedMemoryLimit())
@@ -326,6 +325,15 @@ namespace Kinetix.Internal
                 {
                     retargetedEmoteByAvatar[_Avatar].ProgressStatus = EProgressStatus.NONE;
                     retargetedEmoteByAvatar[_Avatar].CancelToken.Cancel();
+                    
+                    try
+                    {
+                        MemoryManager.DeleteFileInStorage(Ids.UUID);
+                    }
+                    catch (IOException)
+                    {
+                        // Catch if file is still used
+                    }
                 }
             }
             else
@@ -333,11 +341,11 @@ namespace Kinetix.Internal
                 EmoteRetargetedData retargetedData = retargetedEmoteByAvatar[_Avatar];
                 MemoryManager.RemoveRamAllocation(retargetedData.SizeInBytes);
                 MemoryManager.DeleteFileInRaM(retargetedData.AnimationClipLegacyRetargeted);
+                MemoryManager.DeleteFileInStorage(Ids.UUID);
             }
 
             retargetedEmoteByAvatar.Remove(_Avatar);
             pathGLB = null;
-            MemoryManager.DeleteFileInStorage(Ids.UUID);
         }
 
         public void ClearAllAvatars(KinetixAvatar[] _AvoidAvatars = null)
