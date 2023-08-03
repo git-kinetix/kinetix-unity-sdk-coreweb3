@@ -6,6 +6,7 @@ namespace Kinetix.Internal
     public class KinetixPeer
     {
         public KinetixAvatar                      KAvatar;
-        public KinetixCharacterComponent          KCharacterComponent;
+        public KinetixCharacterComponentRemote                          KCharacterComponent;
+        
     }
 }

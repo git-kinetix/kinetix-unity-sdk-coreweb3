@@ -1,10 +1,24 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
 
 namespace Kinetix.Internal
 {
+	public struct RangeFloat
+	{
+		public float min;
+		public float max;
+
+        public RangeFloat(float min, float max)
+        {
+            this.min = min;
+            this.max = max;
+        }
+
+        public float Center => (min + max)/2;
+		public float Size => Mathf.Abs(max-min);
+	}
+
 	/// <summary>
 	/// A tool to debug draw line etc... in the scene
 	/// </summary>
@@ -32,7 +46,7 @@ namespace Kinetix.Internal
 			{
 				lock (m_behaviour.data)
 				{
-					m_behaviour.data.Add(new Data(color ?? m_color, from + m_startOffset, to + m_startOffset, duration ?? 0, Data.DrawType.Line));
+					m_behaviour.data.Add(new DataLine(from + m_startOffset, to + m_startOffset, color ?? m_color, duration ?? 0));
 				}
 			}
 		}
@@ -43,7 +57,42 @@ namespace Kinetix.Internal
 			{
 				lock (m_behaviour.data)
 				{
-					m_behaviour.data.Add(new Data(color ?? m_color, from + m_startOffset, to + m_startOffset, duration ?? 0, Data.DrawType.Triangle) { size = size});
+					m_behaviour.data.Add(new DataTriangle(from + m_startOffset, to + m_startOffset, color ?? m_color, duration ?? 0, size));
+				}
+			}
+		}
+
+		public void DrawCube(RangeFloat rangeX, RangeFloat rangeY, RangeFloat rangeZ, Quaternion rotation, Color? color = null, float? duration = null)
+		{
+			if (m_behaviour != null)
+			{
+				lock (m_behaviour.data)
+				{
+					DataCube item = new DataCube(rangeX, rangeY, rangeZ, rotation, color ?? m_color, duration ?? 0);
+					item.center += m_startOffset;
+					m_behaviour.data.Add(item);
+				}
+			}
+		}
+
+		public void DrawPlane(Vector3 position, Quaternion rotation, float size, Color? color = null, float? duration = null)
+		{
+			if (m_behaviour != null)
+			{
+				lock (m_behaviour.data)
+				{
+					m_behaviour.data.Add(new DataPlane(position + m_startOffset, rotation, size, color ?? m_color, duration ?? 0));
+				}
+			}
+		}
+
+		public void DrawCube(Vector3 center, Vector3 size, Quaternion rotation, Color? color = null, float? duration = null)
+		{
+			if (m_behaviour != null)
+			{
+				lock (m_behaviour.data)
+				{
+					m_behaviour.data.Add(new DataCube(center + m_startOffset, size, rotation, color ?? m_color, duration ?? 0));
 				}
 			}
 		}
@@ -60,66 +109,137 @@ namespace Kinetix.Internal
 			m_behaviour = null;
 		}
 
-		public class Data
+		public abstract class AData
 		{
-			public enum DrawType
-			{
-				Line, Triangle
-			}
-
-			public DrawType type;
 			public Color color;
+			public float duration;
+
+			protected AData(Color color, float duration)
+			{
+				this.color = color;
+				this.duration = duration;
+			}
+			public abstract void Draw();
+		}
+		public class DataLine : AData
+		{
 			public Vector3 from;
 			public Vector3 to;
-			public float duration;
-			public float size;
 
-            public Data(Color color, Vector3 from, Vector3 to, float duration, DrawType type)
+            public DataLine(Vector3 from, Vector3 to, Color color, float duration) : base(color, duration)
             {
-                this.color = color;
                 this.from = from;
                 this.to = to;
                 this.duration = duration;
-                this.type = type;
             }
+
+            public override void Draw()
+            {
+				Debug.DrawLine(from, to, color);
+			}
+        }
+		public class DataTriangle : AData
+		{
+			public Vector3 from;
+			public Vector3 to;
+			public float size;
+
+			public DataTriangle(Vector3 from, Vector3 to, Color color, float duration, float size = 1) : base(color, duration)
+			{
+				this.from = from;
+				this.to = to;
+				this.duration = duration;
+				this.size = size;
+			}
+
+            public override void Draw()
+			{
+				KinetixLogger.DrawPyramidMesh(from, to, size);
+			}
+        }
+		public class DataPlane : AData
+		{
+			public Vector3 position;
+			public Quaternion rotation;
+			public float size;
+
+			public DataPlane(Vector3 position, Quaternion rotation, float size, Color color, float duration) : base(color, duration)
+			{
+				this.position = position;
+				this.rotation = rotation;
+				this.size = size;
+			}
+
+            public override void Draw()
+            {
+				var matrix = Gizmos.matrix;
+
+				Gizmos.matrix *= Matrix4x4.TRS(position, rotation, Vector3.one);
+				Gizmos.DrawCube(Vector3.zero, new Vector3(size, 0.001f, size));
+
+				Gizmos.matrix = matrix;
+			}
+        }
+        public class DataCube : AData
+        {
+            public Vector3 center;
+            public Vector3 size;
+			public Quaternion rotation;
+
+            public DataCube(RangeFloat rangeX, RangeFloat rangeY, RangeFloat rangeZ, Quaternion rotation, Color color, float duration) : base(color, duration)
+			{
+                center = new Vector3(rangeX.Center, rangeY.Center, rangeZ.Center);
+                size = new Vector3(rangeX.Size, rangeY.Size, rangeZ.Size);
+
+				this.rotation = rotation;
+			}
+
+            public DataCube(Vector3 center, Vector3 size, Quaternion rotation, Color color, float duration) : base(color, duration)
+            {
+                this.center = center;
+                this.size = size;
+                this.rotation = rotation;
+            }
+
+            public override void Draw()
+            {
+				var matrix = Gizmos.matrix;
+
+				Gizmos.matrix *= Matrix4x4.TRS(center, rotation, Vector3.one);
+				Gizmos.DrawCube(Vector3.zero, size);
+				Gizmos.matrix = matrix;
+			}
         }
 
-		/// <summary>
-		/// Behaviour to call unity's methods in unity's threads for drawing
-		/// </summary>
-		public class ThreadedDrawerBehaviour : MonoBehaviour, IDisposable
+        /// <summary>
+        /// Behaviour to call unity's methods in unity's threads for drawing
+        /// </summary>
+        public class ThreadedDrawerBehaviour : MonoBehaviour, IDisposable
 		{
-			public List<Data> data = new List<Data>();
+			public bool disposed = false;
+			public List<AData> data = new List<AData>();
 
 			public void Dispose()
 			{
-				data = null;
+				disposed = true;
 			}
 
 			// Update is called once per frame
 			void LateUpdate()
 			{
-				if (data == null)
+				if (data.Count == 0 && disposed)
 				{
 					enabled = false;
 					Destroy(gameObject);
+					return;
 				}
 
 				lock (data)
 				{
 					for (int i = data.Count - 1; i >= 0; i--)
 					{
-						Data item = data[i];
-
-						switch (item.type)
-						{
-							default:
-								continue;
-							case Data.DrawType.Line:
-								Debug.DrawLine(item.from, item.to, item.color);
-								item.duration -= Time.deltaTime;
-								break;
-						}
+						AData item = data[i];
+						item.duration -= Time.deltaTime;
 
 						if (item.duration <= 0)
 							data.RemoveAt(i);
@@ -139,22 +259,15 @@ namespace Kinetix.Internal
 				{
 					for (int i = data.Count - 1; i >= 0; i--)
 					{
-						Data item = data[i];
-
-						switch (item.type)
-						{
-							default:
-								continue;
-							case Data.DrawType.Triangle:
-								Gizmos.color = item.color;
-								KinetixLogger.DrawPyramidMesh(item.from, item.to, item.size);
-								Gizmos.color = Color.white;
+						AData item = data[i];
 #if UNITY_EDITOR
-								if (!UnityEditor.EditorApplication.isPaused)
+						if (!UnityEditor.EditorApplication.isPaused)
 #endif
-									item.duration -= Time.deltaTime;
-								break;
-						}
+							item.duration -= Time.deltaTime;
+
+						Gizmos.color = item.color;
+						item.Draw();
+						Gizmos.color = Color.white;
 
 						if (item.duration <= 0)
 							data.RemoveAt(i);

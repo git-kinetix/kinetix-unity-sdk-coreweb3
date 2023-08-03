@@ -59,7 +59,32 @@ namespace Kinetix.Internal
 			KinetixAnimationBehaviour.RegisterLocalPlayerAnimator(_Animator, _Config);
 			OnRegisteredLocalPlayer?.Invoke();
 		}
-		
+
+		/// <summary>
+		/// Register the Local Player with a custom hierarchy
+		/// </summary>
+		/// <param name="_Root">The root of the skeleton's hierarchy. In T pose</param>
+		/// <param name="_RootTransform">The root GameObject of your avatar</param>
+		/// <param name="_PoseInterpreter">The interpretor to apply poses to your avatar</param>
+		public void RegisterLocalPlayerCustom(DataBoneTransform _Root, Transform _RootTransform, IPoseInterpreter _PoseInterpreter)
+		{
+			KinetixAnimationBehaviour.RegisterLocalPlayerCustom(_Root, _RootTransform, _PoseInterpreter);
+			OnRegisteredLocalPlayer?.Invoke();
+		}
+
+		/// <summary>
+		/// Register the Local Player with a custom hierarchy
+		/// </summary>
+		/// <param name="_Root">The root of the skeleton's hierarchy. In T pose</param>
+		/// <param name="_RootTransform">The root GameObject of your avatar</param>
+		/// <param name="_PoseInterpreter">The interpretor to apply poses to your avatar</param>
+		/// <param name="_Config">Configuration of the root motion</param>
+		public void RegisterLocalPlayerCustom(DataBoneTransform _Root, Transform _RootTransform, IPoseInterpreter _PoseInterpreter, RootMotionConfig _Config)
+		{
+			KinetixAnimationBehaviour.RegisterLocalPlayerCustom(_Root, _RootTransform, _PoseInterpreter, _Config);
+			OnRegisteredLocalPlayer?.Invoke();
+		}
+
 		/// <summary>
 		/// Register the local player configuration for custom animation system.
 		/// </summary>
@@ -100,10 +125,24 @@ namespace Kinetix.Internal
 		}
 		
 		/// <summary>
-		/// Get Retargeted AnimationClip Legacy for local player
+		/// Get Retargeted KinetixClip for local player
 		/// </summary>
 		/// <param name="_AnimationIds">IDs of the animation</param>
-		/// <param name="_OnSuccess">Callback on Success providing AnimationClip Legacy</param>
+		/// <param name="_OnSuccess">Callback on Success providing KinetixClip Legacy</param>
+		/// <param name="_OnFailure">Callback on Failure</param>
+		public void GetRetargetedKinetixClipForLocalPlayer(AnimationIds _AnimationIds, Action<KinetixClip> _OnSuccess, Action _OnFailure = null)
+		{
+			KinetixAnimationBehaviour.GetRetargetedKinetixClipOnLocalPlayer(_AnimationIds, _OnSuccess, _OnFailure);
+		}
+
+		/// <summary>
+		/// Get Retargeted AnimationClip Legacy for local player
+		/// </summary>
+		/// <remarks>
+		/// The animation clip memory isn't unhandeled by the sdk. You have to call the <see cref="UnityEngine.Object.Destroy"/> after using it.
+		/// </remarks>
+		/// <param name="_AnimationIds">IDs of the animation</param>
+		/// <param name="_OnSuccess">Callback on Success providing KinetixClip Legacy</param>
 		/// <param name="_OnFailure">Callback on Failure</param>
 		public void GetRetargetedAnimationClipLegacyForLocalPlayer(AnimationIds _AnimationIds, Action<AnimationClip> _OnSuccess, Action _OnFailure = null)
 		{
@@ -220,7 +259,7 @@ namespace Kinetix.Internal
 			KinetixAnimationBehaviour.GetNotifiedOnAnimationReadyOnLocalPlayer(_Ids, _OnSuccess);
 		}
 
-		public KinetixCharacterComponent GetLocalKCC()
+		public KinetixCharacterComponentLocal GetLocalKCC()
 		{
 			return KinetixAnimationBehaviour.GetLocalKCC();
 		}
@@ -229,8 +268,8 @@ namespace Kinetix.Internal
 
 		public KinetixAnimation()
 		{
-			LocalPlayerManager.OnAnimationStartOnLocalPlayerAnimator += AnimationStartOnLocalPlayerAnimator;
-			LocalPlayerManager.OnAnimationEndOnLocalPlayerAnimator   += AnimationEndOnLocalPlayerAnimator;
+			KinetixCoreBehaviour.ManagerLocator.Get<LocalPlayerManager>().OnAnimationStartOnLocalPlayerAnimator += AnimationStartOnLocalPlayerAnimator;
+			KinetixCoreBehaviour.ManagerLocator.Get<LocalPlayerManager>().OnAnimationEndOnLocalPlayerAnimator   += AnimationEndOnLocalPlayerAnimator;
 		}
 
 		private void AnimationStartOnLocalPlayerAnimator(AnimationIds _AnimationIds)

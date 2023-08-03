@@ -11,8 +11,7 @@ using Kinetix.Internal.Network;
 namespace Kinetix.Internal
 {
     public class KinetixNetwork
-    {
-                
+    {        
         /// <summary>
         /// Use this to set the current Kinetix Network Configuration.
         /// </summary>
@@ -34,7 +33,7 @@ namespace Kinetix.Internal
         /// <summary>
         /// Returns the KinetixCharacterComponent for a remote peer
         /// </summary>
-        public KinetixCharacterComponent GetRemoteKCC(string _RemotePeerID) 
+        public KinetixCharacterComponentRemote GetRemoteKCC(string _RemotePeerID) 
         {
             return KinetixNetworkBehaviour.GetRemoteKCC(_RemotePeerID);
         }
@@ -45,18 +44,28 @@ namespace Kinetix.Internal
         /// </summary>
         /// <param name="_RemotePeerUUID">UUID of the remote peer in the room</param>
         /// <param name="_Animator">Animator of the remote peer</param>
-        /// <param name="_Transmitter">Animator of the remote peer</param>
         public void RegisterRemotePeerAnimator(string _RemotePeerUUID, Animator _Animator)
         {
             KinetixNetworkBehaviour.RegisterRemotePeer(_RemotePeerUUID, _Animator);
         }
 
+		/// <summary>
+		/// Register remote peer with a custom hierarchy.
+		/// </summary>
+		/// <param name="_RemotePeerUUID">UUID of the remote peer in the room</param>
+		/// <param name="_Root">The root of the skeleton's hierarchy. In T pose</param>
+		/// <param name="_RootTransform">The root GameObject of your avatar</param>
+		/// <param name="_PoseInterpreter">The interpretor to apply poses to your avatar</param>
+		public void RegisterRemotePeerCustom(string _RemotePeerUUID, DataBoneTransform _Root, Transform _RootTransform, IPoseInterpreter _PoseInterpreter)
+		{
+			KinetixNetworkBehaviour.RegisterRemotePeerCustom(_RemotePeerUUID, _Root, _RootTransform, _PoseInterpreter);
+		}
 
-        /// <summary>
-        /// Unregister remote peer.
-        /// </summary>
-        /// <param name="_RemotePeerUUID">UUID of the remote peer in the room.</param>
-        public void UnregisterRemotePeer(string _RemotePeerUUID)
+		/// <summary>
+		/// Unregister remote peer.
+		/// </summary>
+		/// <param name="_RemotePeerUUID">UUID of the remote peer in the room.</param>
+		public void UnregisterRemotePeer(string _RemotePeerUUID)
         {
             KinetixNetworkBehaviour.UnregisterRemotePeer(_RemotePeerUUID);
         }

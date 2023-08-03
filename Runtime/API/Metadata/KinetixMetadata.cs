@@ -5,6 +5,7 @@
 // // ----------------------------------------------------------------------------
 
 using System;
+using System.Threading;
 using UnityEngine;
 using Kinetix.Utils;
 
@@ -42,7 +43,7 @@ namespace Kinetix.Internal
             KinetixMetadataBehaviour.GetUserAnimationsTotalPagesCount(_CountByPage, _OnSuccess, _OnFailure);
         }
 
-        public void LoadIconByAnimationId(AnimationIds _Ids, Action<Sprite> _OnSuccess, TokenCancel token=null)
+        public void LoadIconByAnimationId(AnimationIds _Ids, Action<Sprite> _OnSuccess, CancellationTokenSource token = null)
         {
             KinetixMetadataBehaviour.LoadIconByAnimationId(_Ids, _OnSuccess, token);
         }
