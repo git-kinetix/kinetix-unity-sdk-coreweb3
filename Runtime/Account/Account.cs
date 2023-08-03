@@ -17,13 +17,6 @@ namespace Kinetix.Internal
         public Account(string _AccountId)
         {
             accountId = _AccountId;
-
-            PreFetch();
-        }
-
-        private async void PreFetch()
-        {
-            await FetchMetadatas();
         }
 
         public async Task<KinetixEmote[]> FetchMetadatas()
@@ -33,7 +26,7 @@ namespace Kinetix.Internal
             
             try
             {
-                AnimationMetadata[] animationMetadatas = await MetadataAccountOperationManager.DownloadMetadataByAccount(this);
+                AnimationMetadata[] animationMetadatas = await KinetixCoreBehaviour.ServiceLocator.Get<ProviderService>().GetAnimationMetadataOfOwner(this);
                 emotes = new List<KinetixEmote>();
                 
                 for (int i = 0; i < animationMetadatas.Length; i++)
@@ -51,7 +44,7 @@ namespace Kinetix.Internal
 
         public void AddEmoteFromMetadata(AnimationMetadata animationMetadata)
         {
-            KinetixEmote emote = EmotesManager.GetEmote(animationMetadata.Ids);
+            KinetixEmote emote = KinetixCoreBehaviour.ServiceLocator.Get<EmotesService>().GetEmote(animationMetadata.Ids);
             emote.SetMetadata(animationMetadata);
             emotes.Add(emote);
         }
@@ -60,7 +53,7 @@ namespace Kinetix.Internal
         {
             var tcs = new TaskCompletionSource<AnimationMetadata>();
 
-            AnimationMetadata animMetadata = await ProviderManager.GetAnimationMetadataOfEmote(animationMetadataIds);
+            AnimationMetadata animMetadata = await KinetixCoreBehaviour.ServiceLocator.Get<ProviderService>().GetAnimationMetadataOfEmote(animationMetadataIds);
 
             AddEmoteFromMetadata(animMetadata);
 

@@ -30,7 +30,7 @@ namespace Kinetix.Internal
 
 
         public Texture2D GetQRCodeForUrl(string url, Color lightColor, Color darkColor)
-        {
+        {            
             QRCodeData qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.H);
             UnityQRCode qrCode = new UnityQRCode(qrCodeData);
 

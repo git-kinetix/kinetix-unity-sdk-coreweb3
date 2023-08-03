@@ -7,17 +7,17 @@ namespace Kinetix.Internal
 
         public static void ConnectWallet(string _WalletAddress, Action _OnSuccess = null)
         {
-            AccountManager.ConnectWallet(_WalletAddress, _OnSuccess);
+            KinetixCoreBehaviour.ManagerLocator.Get<AccountManager>().ConnectWallet(_WalletAddress, _OnSuccess);
         }
         
         public static void DisconnectWallet(string _WalletAddress)
         {
-            AccountManager.DisconnectWallet(_WalletAddress);
+            KinetixCoreBehaviour.ManagerLocator.Get<AccountManager>().DisconnectWallet(_WalletAddress);
         }
 
         public static void DisconnectAllWallets()
         {
-            AccountManager.DisconnectAllWallets();
+            KinetixCoreBehaviour.ManagerLocator.Get<AccountManager>().DisconnectAllWallets();
         }
     }
 }

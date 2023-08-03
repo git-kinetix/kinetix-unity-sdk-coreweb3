@@ -11,35 +11,39 @@ namespace Kinetix.Internal.Network
 {
     internal static class KinetixNetworkBehaviour
     {
-        
         public static void RegisterRemotePeer(string _RemotePeerID, Animator _Animator)
         {
-            NetworkManager.RegisterRemotePeerAnimator(_RemotePeerID, _Animator);
+            KinetixCoreBehaviour.ManagerLocator.Get<NetworkManager>().RegisterRemotePeerAnimator(_RemotePeerID, _Animator);
+        }
+        
+        public static void RegisterRemotePeerCustom(string _RemotePeerID, DataBoneTransform _Root, Transform _RootTransform, IPoseInterpreter _PoseInterpreter)
+		{
+            KinetixCoreBehaviour.ManagerLocator.Get<NetworkManager>().RegisterRemotePeerCustom(_RemotePeerID, _Root, _RootTransform, _PoseInterpreter);
         }
 
         public static void UnregisterRemotePeer(string _RemotePeerID)
         {
-            NetworkManager.UnregisterRemotePeer(_RemotePeerID);
+            KinetixCoreBehaviour.ManagerLocator.Get<NetworkManager>().UnregisterRemotePeer(_RemotePeerID);
         }
 
         public static void UnregisterAllRemotePeers()
         {
-            NetworkManager.UnregisterAllRemotePeers();
+            KinetixCoreBehaviour.ManagerLocator.Get<NetworkManager>().UnregisterAllRemotePeers();
         }
 
         public static void SetConfiguration(KinetixNetworkConfiguration _Configuration)
         {
-            NetworkManager.SetConfiguration(_Configuration);
+            KinetixCoreBehaviour.ManagerLocator.Get<NetworkManager>().SetConfiguration(_Configuration);
         }
 
         public static KinetixNetworkConfiguration GetConfiguration()
         {
-            return NetworkManager.Configuration;
+            return KinetixCoreBehaviour.ManagerLocator.Get<NetworkManager>().Configuration;
         }
 
-        public static KinetixCharacterComponent GetRemoteKCC(string _RemotePeerID) 
+        public static KinetixCharacterComponentRemote GetRemoteKCC(string _RemotePeerID) 
         {
-            return NetworkManager.GetRemoteKCC(_RemotePeerID);
+            return KinetixCoreBehaviour.ManagerLocator.Get<NetworkManager>().GetRemoteKCC(_RemotePeerID);
         }
 
     }

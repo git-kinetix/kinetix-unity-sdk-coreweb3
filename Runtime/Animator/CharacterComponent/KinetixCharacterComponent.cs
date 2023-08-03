@@ -7,143 +7,185 @@
 using System;
 using UnityEngine;
 using Kinetix.Internal;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Kinetix
 {
-    public class KinetixCharacterComponent : MonoBehaviour
-    {
-        public Action<AnimationIds> OnAnimationStart;
-        public Action<AnimationIds> OnAnimationEnd;
+	/// <summary>
+	/// Kinetix Character Component
+	/// </summary>
+	public abstract class KinetixCharacterComponent : IDisposable
+	{
 
-        public RootMotionConfig RootMotionConfig { get { return clipSampler.RootMotionConfig; } set { clipSampler.RootMotionConfig = value; } }
+		/// <summary>
+		/// Called when an animation starts playing
+		/// </summary>
+		public event Action<AnimationIds> OnAnimationStart;
+		/// <summary>
+		/// Called when an animation stop playing
+		/// </summary>
+		public event Action<AnimationIds> OnAnimationEnd;
+		/// <summary>
+		/// Called on each frame of the animation
+		/// </summary>
+		public event Action OnPlayedFrame;
 
-        private string      guid;
-        private ClipSampler clipSampler;
-        private NetworkPoseSampler networkSampler;
+		/// <summary>
+		/// If true, the animation will automaticaly play.<br/>
+		/// If false you can handle the animation using the events<br/>
+		/// <list type="bullet">
+		///		<item>
+		///		<term><see cref="OnAnimationStart"/></term>
+		///     <description> Animation Start </description>
+		///		</item>
+		///		<item>
+		///		<term><see cref="OnAnimationEnd"/></term>
+		///     <description> Animation End </description>
+		///		</item>
+		///		<item>
+		///		<term><see cref="OnPlayedFrame"/></term>
+		///     <description> Animation Update </description>
+		///		</item>
+		/// </list>
+		/// </summary>
+		public virtual bool AutoPlay { get => _autoPlay; set => _autoPlay = value; }
+		private bool _autoPlay = false;
 
-        // CACHE
-        private KinetixAvatar kinetixAvatar;
+		/// <summary>
+		/// Unique identifier of the character
+		/// </summary>
+		public string GUID => _guid;
+		private string _guid;
 
-        public void Init(KinetixAvatar _KinetixAvatar)
-        {
-            kinetixAvatar                =  _KinetixAvatar;
-            clipSampler                  =  gameObject.AddComponent<ClipSampler>();
-            clipSampler.OnAnimationStart += AnimationStart;
-            clipSampler.OnAnimationEnd   += AnimationEnd;
-            clipSampler.OnStop += OnClipSamplerBlendedOut;
-            networkSampler = new NetworkPoseSampler(this, GetComponent<Animator>(), clipSampler);
+		internal NetworkPoseSampler networkSampler;
+		protected KinetixCharacterComponentBehaviour behaviour;
 
-            guid = Guid.NewGuid().ToString();
-        }
+		// CACHE
+		protected KinetixAvatar kinetixAvatar;
+		protected readonly List<IPoseInterpreter> poseInerpretor = new List<IPoseInterpreter>();
+		protected HumanBodyBones[] characterBones;
 
-        public void Init(KinetixAvatar _KinetixAvatar, RootMotionConfig _RootMotionConfig)
-        {
-            Init(_KinetixAvatar);
-            clipSampler.Init();
-            clipSampler.RootMotionConfig = _RootMotionConfig;
-        }
+		/// <summary>
+		/// Init the Character
+		/// </summary>
+		/// <param name="kinetixAvatar">The avatar to use for the animation</param>
+		public void Init(KinetixAvatar kinetixAvatar)
+			=> Init(kinetixAvatar, null);
 
-        private void OnDestroy()
-        {
-            Dispose();
-        }
-        
-        public void PlayAnimation(AnimationIds _AnimationIds, bool _Local, Action<AnimationIds> _OnPlayedAnimation)
-        {
-            if (_AnimationIds.UUID == null)
+		/// <summary>
+		/// Init the Character
+		/// </summary>
+		/// <param name="kinetixAvatar">The avatar to use for the animation</param>
+		/// <param name="rootMotionConfig">Configuration of the root motion</param>
+		public virtual void Init(KinetixAvatar kinetixAvatar, RootMotionConfig rootMotionConfig)
+		{
+			//networkSampler = new NetworkPoseSampler(this, GetComponent<Animator>(), clipSampler);
+			behaviour = kinetixAvatar.Root.gameObject.AddComponent<KinetixCharacterComponentBehaviour>();
+			behaviour._kcc = this;
+			behaviour.OnUpdate += Update;
+
+			this.kinetixAvatar = kinetixAvatar;
+			_guid = Guid.NewGuid().ToString();
+
+			AvatarData avatar = kinetixAvatar.Avatar;
+
+			//Get the human bones
+			//NOTE: Maybe we can create an extension method from this
+            if (avatar.avatar != null)
             {
-                KinetixDebug.LogWarning($"Animation {_AnimationIds.UUID} cannot be null when Play Animation");
-                return;
+                characterBones = avatar.avatar.humanDescription.human.Select(h => UnityHumanUtils.HUMANS.IndexOf(h.humanName) >= 0 ? UnityHumanUtils.HUMANS_UNITY[UnityHumanUtils.HUMANS.IndexOf(h.humanName)] : UnityHumanUtils.HUMANS_UNITY[UnityHumanUtils.HUMANS_UNITY.Count - 1]).ToArray();
             }
-            
-            PlayAnimationQueue(new [] {_AnimationIds}, false, _Local, (queue =>
-            {
-                _OnPlayedAnimation?.Invoke(_AnimationIds);
-            }));
-        }
-        
-        public void PlayAnimationQueue(AnimationIds[] _AnimationIdsArray, bool _Loop, bool _Local, Action<AnimationIds[]> _OnPlayedAnimation)
-        {
-            AnimationQueue animationQueue = new AnimationQueue(_AnimationIdsArray, _Loop);
-            foreach(AnimationIds ids in animationQueue.m_animationsIds)
-            {
-                if (ids.UUID == null)
-                {
-                    KinetixDebug.LogWarning($"Animation {ids.UUID} cannot be null when Play Animation");
-                    return;
-                }
+			else if (avatar.hierarchy != null)
+			{
+				characterBones = avatar.hierarchy.Where(h => h.m_humanBone.HasValue).Select(h => h.m_humanBone.Value).ToArray();
+			}
+			else
+			{
+				throw new ArgumentNullException(nameof(kinetixAvatar)+"."+nameof(kinetixAvatar.Avatar));
+			}
+			//----//
 
-                if (!EmotesManager.GetEmote(ids).HasAnimationRetargeted(kinetixAvatar))
-                {
-                    KinetixDebug.LogWarning($"Animation {ids.UUID} was not loaded when Play Animation");
-                    return;
-                }
-            }
-            
+			networkSampler = new NetworkPoseSampler(characterBones);
 
-            EmotesManager.GetAnimationsClip(animationQueue.m_animationsIds, kinetixAvatar, _Local ? SequencerPriority.VeryHigh : SequencerPriority.High, _Local, (clips) =>
-            {
-                animationQueue.m_animationsClips = clips;
-                clipSampler.Play(animationQueue);
-                networkSampler.StartPose();
-                _OnPlayedAnimation?.Invoke(_AnimationIdsArray);
-            }, () =>
-            {
-                KinetixDebug.LogWarning("Can't get all animations for the queue.");
-            });
-        }
+		}
 
+		/// <summary>
+		/// Update (unity message given by the <see cref="behaviour"/>)
+		/// </summary>
+		protected virtual void Update() { }
 
-        #region Network callbacks
+		#region Abstract
 
-        public void ApplySerializedPose(byte[] pose, double timestamp)
-        {
-            networkSampler.ApplyPose(KinetixNetworkedPose.FromByte(pose), timestamp);
-        }
+		/// <summary>
+		/// Check if a pose is available
+		/// </summary>
+		/// <returns>Return true if a pose is available</returns>
+		public abstract bool IsPoseAvailable();
 
-        public byte[] GetSerializedPose()
-        {
-            byte[] pose = networkSampler.GetPose()?.ToByteArray();
+		#endregion
 
-            if (pose == null) {
-                pose = new byte[0];
-            }
+		#region Interpreter
+		/// <summary>
+		/// Set a pose interpreter as the main interpreter<br/>
+		/// (It's the only one that will recieve <see cref="IPoseInterpreter.GetPose"/>)
+		/// </summary>
+		/// <param name="interpreter"></param>
+		public void SetMainPoseInterpreter(IPoseInterpreter interpreter)
+		{
+			poseInerpretor.Remove(interpreter);
+			poseInerpretor.Insert(0, interpreter);
+		}
 
-            return pose;
-        }
+		/// <summary>
+		/// Add a pose interpreter to the list of interpreters
+		/// </summary>
+		/// <param name="interpreter"></param>
+		public void RegisterPoseInterpreter(IPoseInterpreter interpreter)
+		{
+			poseInerpretor.Remove(interpreter);
+			poseInerpretor.Add(interpreter);
+		}
 
-        public void OnClipSamplerBlendedOut()
-        {
-            networkSampler.StopPose();
-        }
+		/// <summary>
+		/// Remove a pose interpreter from the list of interpreters
+		/// </summary>
+		/// <param name="interpreter"></param>
+		public void UnregisterPoseInterpreter(IPoseInterpreter interpreter)
+		{
+			poseInerpretor.Remove(interpreter);
+		}
+		#endregion
 
+		#region Call events
+		/// <summary>
+		/// Call <see cref="OnAnimationStart"/>
+		/// </summary>
+		protected void Call_OnAnimationStart(AnimationIds ids) => OnAnimationStart?.Invoke(ids);
+		/// <summary>
+		/// Call <see cref="OnAnimationEnd"/>
+		/// </summary>
+		protected void Call_OnAnimationEnd(AnimationIds ids) => OnAnimationEnd?.Invoke(ids);
+		/// <summary>
+		/// Call <see cref="OnPlayedFrame"/>
+		/// </summary>
+		protected void Call_OnPlayedFrame() => OnPlayedFrame?.Invoke();
+		#endregion
 
-        #endregion
-        
-        public void StopAnimation()
-        {
-            clipSampler.Stop();
-        }
-        
-        private void AnimationStart(AnimationIds _AnimationIds)
-        {
-            OnAnimationStart?.Invoke(_AnimationIds);
-        }
+		/// <summary>
+		/// Dispose the character.
+		/// </summary>
+		public virtual void Dispose()
+		{
+			OnAnimationStart = null;
+			OnAnimationEnd = null;
+			OnPlayedFrame = null;
 
-        private void AnimationEnd(AnimationIds _AnimationIds)
-        {
-            OnAnimationEnd?.Invoke(_AnimationIds);
-        }
-
-        public void Dispose()
-        {
-            KinetixEmote[] kinetixEmotes = EmotesManager.GetAllEmotes();
-            if (kinetixEmotes == null)
-                return;
-            
-            if (clipSampler != null)
-                clipSampler.Dispose();
-            Destroy(this);
-        }
-    }
+			if (behaviour != null)
+			{
+				behaviour._kcc = null;
+				UnityEngine.Object.Destroy(behaviour);
+			}
+		}
+	}
 }

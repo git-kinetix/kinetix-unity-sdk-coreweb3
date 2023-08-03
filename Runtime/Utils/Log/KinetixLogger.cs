@@ -120,30 +120,6 @@ namespace Kinetix.Internal
 
 		private static string ComputePrefix(string prefix) => KINETIX + PREFIX_MATCHER.Replace(prefix, PREFIX_SUBSTITUTE);
 
-		public static void DrawSkeleton(Transform root, float scaleFactor = 1) => DrawSkeleton(root, Vector3.zero, Color.white, scaleFactor);
-		public static void DrawSkeleton(Transform root, Vector3 globalOffset, float scaleFactor = 1) => DrawSkeleton(root, globalOffset, Color.white, scaleFactor);
-		public static void DrawSkeleton(Transform root, Vector3 globalOffset, Color color, float scaleFactor = 1)
-		{
-			Profiler.BeginSample(nameof(DrawSkeleton));
-			Gizmos.color = color;
-			var trs = root.GetComponentsInChildren<Transform>();
-			foreach (Transform tr in trs)
-			{
-				if (tr == root) continue;
-
-				Vector3 pos = tr.position;
-				Vector3 parentPos = tr.parent.position;
-				float size = Vector3.Distance(parentPos, pos);
-				
-				if (size <= 0) 
-					continue;
-				
-				DrawPyramidMesh(parentPos + globalOffset, pos + globalOffset, Mathf.Clamp(size * 0.15f * scaleFactor, 0.005f * scaleFactor, 0.03f * scaleFactor));
-			}
-			Gizmos.color = Color.white;
-			Profiler.EndSample();
-		}
-
 		private static Mesh s_Mesh = null;
 		private static Mesh GetMesh()
 		{
@@ -210,72 +186,6 @@ namespace Kinetix.Internal
 				Quaternion.FromToRotation(Vector3.up, to - from),
 				new Vector3(size, (from - to).magnitude, size)
 			);
-		}
-
-		[System.Obsolete]
-		public static void DrawPyramidMeshOld(Vector3 from, Vector3 to, float size)
-		{
-			Profiler.BeginSample(nameof(DrawPyramidMesh));
-			Vector3 cross;
-			if (from.sqrMagnitude == 0)
-			{
-				Vector3 replacement = to == Vector3.forward ? Vector3.up : Vector3.forward;
-
-				cross = Vector3.Cross(replacement, to).normalized * size;
-			}
-			else if (to.sqrMagnitude == 0)
-			{
-				Vector3 replacement = from == Vector3.forward ? Vector3.up : Vector3.forward;
-				cross = Vector3.Cross(from, replacement).normalized * size;
-			}
-			else
-				cross = Vector3.Cross(from, to).normalized * size;
-			Quaternion rotateOneThird = Quaternion.AngleAxis(360f / 3, to - from);
-
-			Vector3 a = cross + from;
-			Vector3 b = (rotateOneThird * cross) + from;
-			Vector3 c = (rotateOneThird * rotateOneThird * cross) + from;
-			Vector3 d = to;
-
-			Profiler.BeginSample("NewMesh");
-			Mesh mesh = new Mesh
-			{
-				vertices = new[]
-				{
-					a,c,b,
-					a,b,d,
-					c,a,d,
-					b,c,d,
-				},
-				triangles = new[]
-				{
-					0, 1, 2,
-					3, 4, 5,
-					6, 7, 8,
-					9,10,11,
-				}
-			};
-			Profiler.EndSample();
-
-			//mesh.RecalculateBounds();
-			mesh.RecalculateNormals();
-			mesh.RecalculateTangents();
-
-			Profiler.BeginSample(nameof(Gizmos)+"."+nameof(Gizmos.DrawMesh));
-			Gizmos.DrawMesh(mesh);
-			Profiler.EndSample();
-
-			Profiler.BeginSample("Destroy");
-			if (!Application.isPlaying)
-				new Task(() => {
-					Thread.Sleep(1);
-					Object.DestroyImmediate(mesh);
-				}).Start();
-			else
-				Object.Destroy(mesh);
-			Profiler.EndSample();
-
-			Profiler.EndSample();
 		}
 	}
 }

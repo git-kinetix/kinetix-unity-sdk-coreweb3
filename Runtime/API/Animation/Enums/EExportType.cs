@@ -8,6 +8,7 @@ namespace Kinetix
 {
     public enum EExportType
     {
-        AnimationClipLegacy
+        KinetixClip,
+        AnimationClipLegacy,
     }
 }

@@ -1,257 +1,276 @@
-
-
+// // ----------------------------------------------------------------------------
+// // <copyright file="NetworkPoseSampler.cs" company="Kinetix SAS">
+// // Kinetix Unity SDK - Copyright (C) 2022 Kinetix SAS
+// // </copyright>
+// // ----------------------------------------------------------------------------
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Reflection;
+using System.Linq;
 using UnityEngine;
 
 namespace Kinetix.Internal
 {
-    internal class NetworkPoseSampler
-    {
-        private const    float                      LERP_SMOOTHNESS = 0.25f;
-        private readonly ReadOnlyCollection<string> humans          = Sam.HUMANS;
 
-        private List<Transform> boneTransforms;
-        private Queue<KinetixNetworkedPose> targetTimestampPoseQueue;
-        private KinetixNetworkedPose currentPose;
+	internal class NetworkPoseSampler
+	{   
+		// ====================================================================== //
+		//  EVENTS                                                                //
+		// ====================================================================== //
+		public   event Action                       OnQueueStart    ;
+		public   event Action                       OnQueueStop     ;
+		public   event Action<KinetixFrame>         OnPlayedFrame   ;
+		internal event Func<IEnumerator, Coroutine> RequestCoroutine;
+		// ---------------------------------------------------------------------- //
 
-        private double startOffset = -1f;
-        private double lastTimestamp = -1f;
-        private double currentTimestamp = -1f;
-        
-        private bool isPlaying = false;
+		private const float LERP_SMOOTHNESS = 0.25f;
 
-        private Guid lastAnimGuid = Guid.Empty;
-        private Guid currentAnimGuid = Guid.Empty;
+		private Queue<KinetixNetworkedPose> targetTimestampPoseQueue;
+		private KinetixNetworkedPose currentPose;
+		private KinetixFrame previousSentPos;
 
-        private Coroutine interpolationRoutine = null;
-        private BonePoseInfo[] bonePoseInfos;
+		private double startOffset = -1f;
+		private double lastTimestamp = -1f;
+		private double currentTimestamp = -1f;
+		
+		public bool IsPlaying => isPlaying;
+		private bool isPlaying = false;
 
-        private KinetixCharacterComponent kcc;
-        private ClipSampler clipSampler;
-        private Animator animator;
-        private KinetixNetworkConfiguration config;
-        private bool startingNewAnim = true;
+		private Guid lastAnimGuid = Guid.Empty;
+		private Guid currentAnimGuid = Guid.Empty;
 
+		private Coroutine interpolationRoutine = null;
+		private BonePoseInfo[] bonePoseInfos;
 
-        internal NetworkPoseSampler(KinetixCharacterComponent parent, Animator animator, ClipSampler clipSampler)
+		private KinetixNetworkConfiguration config;
+
+		private HumanBodyBones[] bones;
+
+		internal NetworkPoseSampler(HumanBodyBones[] bones)
         {
-            boneTransforms = new List<Transform>();
-            targetTimestampPoseQueue = new Queue<KinetixNetworkedPose>();
+			targetTimestampPoseQueue = new Queue<KinetixNetworkedPose>();
 
-            for (int t = 0; t < humans.Count; t++)
-            {
-                HumanBodyBones humanBodyBones = (HumanBodyBones) Enum.Parse(typeof(HumanBodyBones), humans[t].Replace(" ", ""));
-                Transform bone = animator.GetBoneTransform(humanBodyBones);
+			this.bones = bones;
+			
+			config = KinetixCoreBehaviour.ManagerLocator.Get<NetworkManager>().Configuration;
+			bonePoseInfos = new BonePoseInfo[bones.Length];
+		}
 
-                if (bone != null) 
-                {
-                    boneTransforms.Add(bone);
-                }
-            }
+		#region LOCAL
+		/// <summary>
+		/// Notify the network pose sampler that 
+		/// </summary>
+		internal void StartPose()
+		{
+			isPlaying = true;
+			currentAnimGuid = Guid.NewGuid();
+		}
 
-            this.clipSampler = clipSampler;
-            this.animator = animator;
-            this.kcc = parent;
+		internal void StopPose()
+		{
+			isPlaying = false;
+			lastAnimGuid = currentAnimGuid;
+			currentAnimGuid = Guid.Empty;
+		}
 
-            config = NetworkManager.Configuration;
-            bonePoseInfos = new BonePoseInfo[boneTransforms.Count];
-        }
+		/// <summary>
+		/// Translate a frame into a pose to export it in remote
+		/// </summary>
+		/// <param name="frame"></param>
+		/// <returns></returns>
+		public KinetixNetworkedPose GetPose(KinetixFrame frame)
+		{
+			if (!isPlaying)
+			{
+				return null;
+			}
 
-        internal void StartPose()
-        {
-            isPlaying = true;
-            currentAnimGuid = Guid.NewGuid();
-        }
+			if (bones == null || bones.Length == 0)
+			{
+				return null;
+			}
 
-        internal void StopPose()
-        {
-            isPlaying = false;
-            lastAnimGuid = currentAnimGuid;
-            currentAnimGuid = Guid.Empty;
-        }
+			//Sort in the bone order of the NetworkPoseSampler
+			TransformData[] transforms =
+				frame.humanTransforms
+					.Select((h, i) => new KeyValuePair<TransformData, int>(h, i))
+					.OrderBy(OrderByHandler)
+					.Select(h => h.Key)
+					.ToArray();
 
-        public void ApplyPose(KinetixNetworkedPose pose, double timestamp)
-        {
-            isPlaying = pose != null;
+			float[] blendshape = frame.blendshapes.ToArray();
+
+			KinetixNetworkedPose toReturn = KinetixNetworkedPose.FromClip(bones, transforms, blendshape, frame.armature, frame.frame, config.SendLocalPosition, config.SendLocalScale);
+
+			int OrderByHandler(KeyValuePair<TransformData, int> b)
+				=> Array.IndexOf(bones, frame.bones[b.Value]);
             
-            // If suddenly we receive a null pose, that means the anim is finished
-            if (!isPlaying) 
-            {
-                lastAnimGuid = currentAnimGuid;
-                currentAnimGuid = Guid.Empty;
-                return;
-            }
-            
-            // If we receive frames of a killed anim, ignore and return
-            if (pose.guid == lastAnimGuid) return;
+			toReturn.guid = currentAnimGuid;
+			return toReturn;
+		}
 
-            currentAnimGuid = pose.guid;
-            pose.timestamp = timestamp;
-    
-            // Start the coroutine and reset params
-            if (interpolationRoutine == null) 
-            {
-                startOffset = 0;
-                lastTimestamp = timestamp;
-                currentTimestamp = timestamp;
-                currentPose = null;
-                targetTimestampPoseQueue = new Queue<KinetixNetworkedPose>();
-                
-                interpolationRoutine = kcc.StartCoroutine(InterpolateBonePosition());
-            }
+		#endregion
 
-            // This is the queue for all anim frames and their timestamp
-            targetTimestampPoseQueue.Enqueue(pose);
-        }
+		public void ApplyPose(KinetixNetworkedPose pose, double timestamp)
+		{
+			isPlaying = pose != null;
+			
+			// If suddenly we receive a null pose, that means the anim is finished
+			if (!isPlaying) 
+			{
+				lastAnimGuid = currentAnimGuid;
+				currentAnimGuid = Guid.Empty;
+				return;
+			}
+			
+			// If we receive frames of a killed anim, ignore and return
+			if (pose.guid == lastAnimGuid) return;
 
-        public KinetixNetworkedPose GetPose()
-        {
-            if (!isPlaying) 
-            {
-                startingNewAnim = true;
-                return null;
-            }
+			currentAnimGuid = pose.guid;
+			pose.timestamp = timestamp;
+	
+			// Start the coroutine and reset params
+			if (interpolationRoutine == null) 
+			{
+				startOffset = 0;
+				lastTimestamp = timestamp;
+				currentTimestamp = timestamp;
+				currentPose = null;
+				targetTimestampPoseQueue = new Queue<KinetixNetworkedPose>();
 
-            if (boneTransforms == null || boneTransforms.Count == 0) 
-            {
-                startingNewAnim = true;
-                return null;
-            }
+				interpolationRoutine = RequestCoroutine(InterpolateBonePosition());
+			}
 
-            bool posEnabled = false; 
-            bool scaleEnabled = false; 
+			// This is the queue for all anim frames and their timestamp
+			targetTimestampPoseQueue.Enqueue(pose);
+		}
+		
+		private IEnumerator InterpolateBonePosition()
+		{
+			float ellapsedSinceLast = 0;
+	
+			while (true)
+			{
+				// Increase timers
+				float deltaTime = Time.deltaTime;
+				currentTimestamp += deltaTime;
+				ellapsedSinceLast += deltaTime;
 
-            for (int i = 0; i < boneTransforms.Count; i++) 
-            {
-                if (boneTransforms[i] == null) continue;
+				// Cumulate some upfront frames before triggering
+				if (targetTimestampPoseQueue.Count < config.TargetFrameCacheCount && isPlaying) 
+				{
+					
+					// If we waited the configured delay for some more frames and nothing is coming, kill the anim
+					if (currentPose != null && ellapsedSinceLast > config.MaxWaitTimeBeforeEmoteExpiration) 
+					{
+						isPlaying = false;
+						OnQueueStop?.Invoke();
+						break;
+					}
 
+					if (currentPose == null) 
+					{
+						startOffset += deltaTime;
 
-                if (!startingNewAnim) 
-                {
-                    if (config.SendLocalPosition) 
-                    {
-                        posEnabled = posEnabled || bonePoseInfos[i].localPosition == boneTransforms[i].localPosition;
-                    }
+						yield return new WaitForEndOfFrame();
+						continue;
+					}
+				}
 
-                    if (config.SendLocalScale) 
-                    {
-                        scaleEnabled = scaleEnabled || bonePoseInfos[i].localScale == boneTransforms[i].localScale;
-                    }
-                }
+				// Get the next frame
+				if (currentPose == null || currentPose.timestamp + startOffset - lastTimestamp <= currentTimestamp - lastTimestamp) 
+				{
 
-                bonePoseInfos[i] = new BonePoseInfo(boneTransforms[i]);
-            }
+					// If it was the last frame, ciao bye 
+					if (targetTimestampPoseQueue.Count == 0) 
+					{
+						OnQueueStop?.Invoke();
+						break;
+					}
 
-            startingNewAnim = false;
+					// If we are not at the first frame of the anim, just save the previous timestamp and set the ellapsed time to 0
+					if (currentPose != null) 
+					{
+						lastTimestamp = currentPose.timestamp;
+						ellapsedSinceLast = 0;
+					}
 
-            return new KinetixNetworkedPose { 
-                bones = bonePoseInfos, 
-                guid = currentAnimGuid,
-                posEnabled = posEnabled,
-                scaleEnabled = scaleEnabled,
-            };
-        }
+					bool isNull = currentPose == null;
+					currentPose = targetTimestampPoseQueue.Dequeue();
 
-        private IEnumerator InterpolateBonePosition()
-        {
-            double ratio = 0;
-            bool hasReachedEnd = false;
-            float ellapsedSinceLast = 0;
-    
-            while (!hasReachedEnd)
-            {
-                // Increase timers
-                currentTimestamp = currentTimestamp + Time.deltaTime;
-                ellapsedSinceLast += Time.deltaTime;
+					if (isNull)
+						OnQueueStart?.Invoke();
+				}
 
-                // Cumulate some upfront frames before triggering
-                if (targetTimestampPoseQueue.Count < config.TargetFrameCacheCount && isPlaying) 
-                {
-                    
-                    // If we waited the configured delay for some more frames and nothing is coming, kill the anim
-                    if (currentPose != null && ellapsedSinceLast > config.MaxWaitTimeBeforeEmoteExpiration) 
-                    {
-                        hasReachedEnd = true;
-                        isPlaying = false;
-                        clipSampler.ForceBlendOut();
-                        break;
-                    }
+				// Calculate interpolation ratio
+				float fRatio = Mathf.Abs(LERP_SMOOTHNESS);
 
-                    if (currentPose == null) 
-                    {
-                        startOffset += Time.deltaTime;
+				KinetixFrame toSend = new KinetixFrame(new TransformData[bones.Length], bones, currentPose.blendshapes); //Assume blendshape don't need interpolation
+				TransformData previousPos;
+				BonePoseInfo curentPos;
 
-                        yield return new WaitForEndOfFrame();
-                        continue;
-                    }
-                }
+				//Assume armature don't need interpolation
+				if (currentPose.hasArmature)
+					toSend.armature = currentPose.armature;
+				else
+					toSend.armature = null;
 
-                // Get the next frame
-                if (currentPose == null || currentPose.timestamp + startOffset - lastTimestamp <= currentTimestamp - lastTimestamp) 
-                {
-
-                    // If it was the last frame, ciao bye 
-                    if (targetTimestampPoseQueue.Count == 0) 
-                    {
-                        hasReachedEnd = true;
-                        break;
-                    }
-
-                    // If we are not at the first frame of the anim, just save the previous timestamp and set the ellapsed time to 0
-                    if (currentPose != null) 
-                    {
-                        lastTimestamp = currentPose.timestamp;
-                        ellapsedSinceLast = 0;
-                    }
-
-                    currentPose = targetTimestampPoseQueue.Dequeue();
-
-                    if (animator.enabled) 
-                    {
-                        clipSampler.DisableAnimator();
-                    }
-                }
-
-                // Calculate interpolation ratio
-                ratio = LERP_SMOOTHNESS;
-
-                float fRatio = Mathf.Abs((float) ratio);
-
-                // Apply interpolation for each bone
-                for (int boneIndex = 0; boneIndex < currentPose.bones.Length; boneIndex++)
-                {
-                    if (currentPose.bones[boneIndex] != null && currentPose.bones[boneIndex].localPosition != null) 
-                    {
+				// Apply interpolation for each bone
+				for (int boneIndex = 0; boneIndex < currentPose.bones.Length; boneIndex++)
+				{
+					if (currentPose.bones[boneIndex] != null && currentPose.bones[boneIndex].localPosition != null) 
+					{
+                        curentPos = currentPose.bones[boneIndex];
+						if (previousSentPos == null)
+						{
+							toSend.humanTransforms[boneIndex] = new TransformData()
+							{
+								rotation = curentPos.localRotation,
+								position = currentPose.posEnabled || boneIndex == 0
+									? curentPos.localPosition
+									: (Vector3?)null,
+								scale = currentPose.scaleEnabled ?
+									curentPos.localScale
+									: (Vector3?)null,
+							};
+						}
+						else
+						{
+							previousPos = previousSentPos.humanTransforms[boneIndex];
                         
-                        boneTransforms[boneIndex].localRotation = Quaternion.Lerp(boneTransforms[boneIndex].localRotation, currentPose.bones[boneIndex].localRotation, fRatio);
-                        
-                        if (currentPose.posEnabled || boneIndex == 0)
-                            boneTransforms[boneIndex].localPosition = Vector3.Lerp(boneTransforms[boneIndex].localPosition, currentPose.bones[boneIndex].localPosition, fRatio);
-                        
-                        if (currentPose.scaleEnabled)
-                            boneTransforms[boneIndex].localScale = Vector3.Lerp(boneTransforms[boneIndex].localScale, currentPose.bones[boneIndex].localScale, fRatio);
-                    }
-                }
+							//Lerp between previous pos (or current if there is no previous pos) to current pos
+							toSend.humanTransforms[boneIndex] = new TransformData()
+							{
+								rotation = Quaternion.Lerp(previousPos.rotation.GetValueOrDefault(curentPos.localRotation), curentPos.localRotation, fRatio),
+								position = currentPose.posEnabled || boneIndex == 0
+									? Vector3.Lerp(previousPos.position.GetValueOrDefault(curentPos.localPosition), curentPos.localPosition, fRatio)
+									: (Vector3?)null,
+								scale = currentPose.scaleEnabled
+									? Vector3.Lerp(previousPos.scale.GetValueOrDefault(curentPos.localScale), curentPos.localScale, fRatio)
+									: (Vector3?)null,
+							};
+						}
+					}
+				}
 
-                yield return new WaitForEndOfFrame();
-            }
-            
+				OnPlayedFrame?.Invoke(toSend);
+				previousSentPos = toSend;
 
-            if (currentAnimGuid != Guid.Empty) 
-            {
-                lastAnimGuid = currentAnimGuid;
-                currentAnimGuid = Guid.Empty;
-            }
-            
-            // As clip blending is accounted for in the networked pose, we can just enable back the animator
-            animator.enabled = true;
-            interpolationRoutine = null;
-            targetTimestampPoseQueue = new Queue<KinetixNetworkedPose>();
-        }
-    }
+				yield return new WaitForEndOfFrame();
+			}
+			
+
+			//if (currentAnimGuid != Guid.Empty) 
+			//{
+			//	lastAnimGuid = currentAnimGuid;
+			//	currentAnimGuid = Guid.Empty;
+			//}
+			
+			// As clip blending is accounted for in the networked pose, we can just enable back the animator
+			//animator.enabled = true;
+			interpolationRoutine = null;
+			targetTimestampPoseQueue = new Queue<KinetixNetworkedPose>();
+		}
+	}
 }
