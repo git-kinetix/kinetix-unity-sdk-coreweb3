@@ -1,9 +1,13 @@
+using System;
 using System.Threading.Tasks;
+using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Kinetix.Internal
 {
-    public abstract class EmoteRetargetingClipResult
+    public abstract class EmoteRetargetingClipResult : IDisposable
     {
+        public abstract void Dispose();
         public abstract bool HasClip();
     }
 
@@ -29,6 +33,14 @@ namespace Kinetix.Internal
         public override bool HasClip()
         {
             return Clip != null;
+        }
+        
+        public override void Dispose()
+        {
+            if (Clip is AnimationClip clip)
+            {
+                Object.Destroy(clip);
+            }
         }
     }
 }

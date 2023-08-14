@@ -264,6 +264,11 @@ namespace Kinetix.Internal
 			return KinetixAnimationBehaviour.GetLocalKCC();
 		}
 
+        public bool IsLocalPlayerRegistered()
+        {
+            return KinetixAnimationBehaviour.IsLocalPlayerRegistered();
+        }
+
 		#region Internal
 
 		public KinetixAnimation()

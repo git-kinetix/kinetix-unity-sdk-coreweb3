@@ -31,7 +31,8 @@ namespace Kinetix.Internal
                 
                 for (int i = 0; i < animationMetadatas.Length; i++)
                 {
-                    AddEmoteFromMetadata(animationMetadatas[i]);
+                    if (animationMetadatas[i] != null)
+                        AddEmoteFromMetadata(animationMetadatas[i]);
                 }
                 
                 return emotes.ToArray();
@@ -45,21 +46,23 @@ namespace Kinetix.Internal
         public void AddEmoteFromMetadata(AnimationMetadata animationMetadata)
         {
             KinetixEmote emote = KinetixCoreBehaviour.ServiceLocator.Get<EmotesService>().GetEmote(animationMetadata.Ids);
+            
             emote.SetMetadata(animationMetadata);
             emotes.Add(emote);
         }
 
         public async Task<AnimationMetadata> AddEmoteFromIds(AnimationIds animationMetadataIds)
         {
-            var tcs = new TaskCompletionSource<AnimationMetadata>();
-
-            AnimationMetadata animMetadata = await KinetixCoreBehaviour.ServiceLocator.Get<ProviderService>().GetAnimationMetadataOfEmote(animationMetadataIds);
-
-            AddEmoteFromMetadata(animMetadata);
-
-            tcs.SetResult(animMetadata);
-
-            return await tcs.Task;
+            try
+            {
+                AnimationMetadata animMetadata = await KinetixCoreBehaviour.ServiceLocator.Get<ProviderService>().GetAnimationMetadataOfEmote(animationMetadataIds);
+                AddEmoteFromMetadata(animMetadata);
+                return animMetadata;
+            }
+            catch (Exception e)
+            {
+                throw e;
+            }
         }
 
         public bool HasEmote(AnimationIds emoteIds)

@@ -132,6 +132,9 @@ namespace Kinetix.Internal.Cache
 			try
 			{
 				AnimationClip clip = await KinetixCoreBehaviour.ServiceLocator.Get<RetargetingService>().GetRetargetedClipByAvatar<AnimationClip, AnimationClipExport>(emote, KAvatar, SequencerPriority.Low, false);
+				
+				clip.wrapMode = WrapMode.Default;
+
 				_OnSuccess?.Invoke(clip);
 			}
 			catch (OperationCanceledException)
@@ -257,8 +260,7 @@ namespace Kinetix.Internal.Cache
 			{
 				RemoveLocalPlayerEmotesReadyToPlay(ids);
 				KinetixEmote emote = KinetixCoreBehaviour.ServiceLocator.Get<EmotesService>().GetEmote(ids);
-
-				KinetixCoreBehaviour.ServiceLocator.Get<LockService>().ForceUnload(new KinetixEmoteAvatarPair(emote, KAvatar));
+                KinetixCoreBehaviour.ServiceLocator.Get<LockService>().ForceUnload(new KinetixEmoteAvatarPair(emote, KAvatar));
 			}
 		}
 
@@ -336,7 +338,7 @@ namespace Kinetix.Internal.Cache
 				}
 				else
 				{
-					if (!callbackOnRetargetedAnimationIdOnLocalPlayer.ContainsKey(_Ids))
+                    if (!callbackOnRetargetedAnimationIdOnLocalPlayer.ContainsKey(_Ids))
 						callbackOnRetargetedAnimationIdOnLocalPlayer.Add(_Ids, new List<Action>());
 					callbackOnRetargetedAnimationIdOnLocalPlayer[_Ids].Add(_OnSucceed);
 				}
@@ -462,8 +464,8 @@ namespace Kinetix.Internal.Cache
 					try
 					{
 						KinetixEmote emote = KinetixCoreBehaviour.ServiceLocator.Get<EmotesService>().GetEmote(kvp.Key);
-						//KinetixCoreBehaviour.ServiceLocator.Get<RetargetingService>().GetRetargetedClipByAvatar<KinetixClip, KInetix>(emote, KAvatar, kvp.Value[i], false);
-					}
+                        KinetixCoreBehaviour.ServiceLocator.Get<RetargetingService>().RegisterCallbacksOnRetargetedByAvatar(emote, KAvatar, kvp.Value[i]);
+                    }
 					catch (Exception e)
 					{
 						KinetixDebug.LogWarning("Could not subscribe for retargeting callback: " + e.Message);
@@ -482,5 +484,10 @@ namespace Kinetix.Internal.Cache
 		{
 			return LocalKinetixCharacterComponent;
 		}
+
+        public bool IsLocalPlayerRegistered()
+        {
+            return KAvatar != null;
+        }
 	}
 }
