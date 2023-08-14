@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Kinetix.Internal.Retargeting;
 using Kinetix.Utils;
+using UnityEngine;
 
 namespace Kinetix.Internal
 {
@@ -44,10 +45,9 @@ namespace Kinetix.Internal
 
             if (!retargetedEmoteByAvatar.ContainsKey(pair))
                 return false;
-            if (!retargetedEmoteByAvatar[pair].clipsByType.ContainsKey(typeof(KinetixClip)))
-                return false;
-            
-            return retargetedEmoteByAvatar[pair].clipsByType[typeof(KinetixClip)].HasClip();
+
+            bool hasAnimationRetargeted = retargetedEmoteByAvatar[pair].clipsByType.Values.ToList().Exists(retargetedEmote => retargetedEmote.HasClip());
+            return hasAnimationRetargeted;
         }
 
 
@@ -63,6 +63,12 @@ namespace Kinetix.Internal
         {
             KinetixEmoteAvatarPair pair = new KinetixEmoteAvatarPair() { Emote = _Emote, Avatar = _Avatar};
 
+            if (HasAnimationRetargeted(_Emote, _Avatar))
+            {
+                _OnSucceed?.Invoke();
+                return;
+            }
+            
             if (!OnEmoteRetargetedByAvatar.ContainsKey(pair))
                 OnEmoteRetargetedByAvatar.Add(pair, new List<Action>());
 
@@ -80,8 +86,7 @@ namespace Kinetix.Internal
 
             if (!OnEmoteRetargetedByAvatar.ContainsKey(pair))
                 return;
-
-
+            
             for (int i = 0; i < OnEmoteRetargetedByAvatar[pair].Count; i++)
             {
                 OnEmoteRetargetedByAvatar[pair][i]?.Invoke();
@@ -329,6 +334,11 @@ namespace Kinetix.Internal
             retargetedEmoteByAvatar[pair].SequencerCancelToken?.Cancel();
             
             EmoteRetargetedData retargetedData = retargetedEmoteByAvatar[pair];
+            foreach (EmoteRetargetingClipResult emoteRetargetingClipResult in retargetedData.clipsByType.Values)
+            {
+                emoteRetargetingClipResult.Dispose();
+            }
+            
             serviceLocator.Get<MemoryService>().RemoveRamAllocation(retargetedData.SizeInBytes);
             serviceLocator.Get<MemoryService>().DeleteFileInStorage(pair.Emote.Ids.UUID);
 

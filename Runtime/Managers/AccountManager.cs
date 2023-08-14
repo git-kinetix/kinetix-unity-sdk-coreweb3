@@ -181,23 +181,18 @@ namespace Kinetix.Internal
             WebRequestDispatcher webRequest = new WebRequestDispatcher();
             try
             {
-                await webRequest.SendRequest<RawResponse>(url, WebRequestDispatcher.HttpMethod.POST, headers);
+                RawResponse response = await webRequest.SendRequest<RawResponse>(url, WebRequestDispatcher.HttpMethod.POST, headers);
+                if (!response.IsSuccess)
+                    return false;
+                
+                await loggedAccount.AddEmoteFromIds(emote);
+                OnUpdatedAccount?.Invoke();
+                return true;
             }
-            catch (Exception ex)
+            catch (Exception e)
             {
-                throw new Exception(ex.Message);
+                throw e;
             }
-
-            if (loggedAccount == null)
-            {
-                throw new Exception(
-                    "Unable to find a connected account. Did you use the KinetixCore.Account.ConnectAccount method?");
-            }
-
-            await loggedAccount.AddEmoteFromIds(emote);
-            OnUpdatedAccount?.Invoke();
-
-            return true;
         }
 
         private async Task<bool> TryCreateAccount(string _UserId)

@@ -152,5 +152,10 @@ namespace Kinetix.Internal
         {
             return KinetixCoreBehaviour.ManagerLocator.Get<LocalPlayerManager>().GetLocalKCC();
         }
+
+        public static bool IsLocalPlayerRegistered()
+        {
+            return KinetixCoreBehaviour.ManagerLocator.Get<LocalPlayerManager>().IsLocalPlayerRegistered();
+        }
     }
 }
